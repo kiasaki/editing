@@ -1,5 +1,10 @@
 package lang
 
+import (
+	"fmt"
+	"strings"
+)
+
 type SValue interface {
 	String() string
 	Type() string
@@ -7,31 +12,54 @@ type SValue interface {
 
 type SInt int64
 
+func (_ SInt) Type() string {
+	return "integer"
+}
+
+func (this SInt) String() string {
+	return fmt.Sprintf("%d", int64(this))
+}
+
 type SNum float64
+
+func (_ SNum) Type() string {
+	return "number"
+}
+
+func (this SNum) String() string {
+	return fmt.Sprintf("%f", float64(this))
+}
+
+type SChar rune
+
+func (_ SChar) Type() string {
+	return "char"
+}
+
+func (this SChar) String() string {
+	return "\\" + string(this)
+}
 
 type SStr string
 
-type SList struct {
-	Head   *SListElement
-	length int
+func (_ SStr) Type() string {
+	return "string"
 }
 
-func NewSList() *SList {
-	return new(SList)
+func (this SStr) String() string {
+	return "\"" + string(this) + "\""
 }
 
-func (this *SList) Length() int {
-	return this.length
+type SList []SValue
+
+func (_ SList) Type() string {
+	return "list"
 }
 
-type SListElement struct {
-	Value SValue
-	next  *SListElement
-}
-
-func (this *SListElement) Next() *SListElement {
-	if this == nil {
-		return nil
+func (this SList) String() string {
+	listString := ""
+	for _, element := range this {
+		listString = listString + " " + element.String()
 	}
-	return this.next
+	return "(" + strings.Trim(listString, " ") + ")"
 }
