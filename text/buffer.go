@@ -55,7 +55,7 @@ func (b *Buffer) End(p Position) {
 }
 
 func (b *Buffer) Move(count int) {
-	b.Point = b.PositionMove(b.Point)
+	b.Point = b.PositionMove(b.Point, count)
 }
 
 func (b *Buffer) PositionMove(pos Position, count int) Position {
@@ -64,6 +64,7 @@ func (b *Buffer) PositionMove(pos Position, count int) Position {
 		count = 0 - count
 		forward = false
 	}
+
 	for i := 0; i < count; i++ {
 		if forward {
 			// End of the line is len -1 (array normal) -1 (char is to the left)

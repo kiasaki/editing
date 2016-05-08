@@ -1,7 +1,5 @@
 package text
 
-var currentWorld *World
-
 type World struct {
 	Buffers       []*Buffer
 	CurrentBuffer *Buffer
@@ -16,12 +14,11 @@ func WorldNew() *World {
 }
 
 func (w *World) Init() error {
-	currentWorld = WorldNew()
 	return nil
 }
 
 func (w *World) End() error {
-	panic("Not implemented")
+	return nil
 }
 
 func (w *World) SetCurrentBuffer(name string) bool {
