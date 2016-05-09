@@ -10,19 +10,20 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
-type Window struct {
-	screen tcell.Screen
-	config *config.Config
-	width  int
-	height int
+type Display struct {
+	screen     tcell.Screen
+	config     *config.Config
+	windowTree struct{}
+	width      int
+	height     int
 }
 
-func WindowNew(c *config.Config) *Window {
-	return &Window{config: c, width: 80, height: 24}
+func DisplayNew(c *config.Config) *Display {
+	return &Display{config: c, width: 80, height: 24}
 }
 
-func (w *Window) Init() (err error) {
-	w.screen, err = tcell.NewScreen()
+func (d *Display) Init() (err error) {
+	d.screen, err = tcell.NewScreen()
 	if err != nil {
 		return
 	}
@@ -30,67 +31,67 @@ func (w *Window) Init() (err error) {
 	encoding.Register()
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
 
-	err = w.screen.Init()
+	err = d.screen.Init()
 	if err != nil {
 		return
 	}
 
-	w.screen.SetStyle(tcell.StyleDefault.
+	d.screen.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorWhite).
 		Background(tcell.ColorBlack))
-	w.screen.Clear()
+	d.screen.Clear()
 
 	return nil
 }
 
-func (w *Window) End() error {
-	w.screen.Fini()
+func (d *Display) End() error {
+	d.screen.Fini()
 	return nil
 }
 
-func (w *Window) Screen() tcell.Screen {
-	return w.screen
+func (d *Display) Screen() tcell.Screen {
+	return d.screen
 }
 
 // Ensure current buffer contents are still visible on screen
 // if not scroll down/up to prefered % (or center)
-func (w *Window) Frame(force bool) {
+func (d *Display) Frame(force bool) {
 
 }
 
 // Internal redisplay logic used by Redisplay() and Refresh()
 // TODO: Implement progrsive rediplay and stop if called too fast
-func (w *Window) redisplay() {
-	w.width, w.height = w.screen.Size()
-	w.screen.Clear()
+func (d *Display) redisplay() {
+	d.width, d.height = d.screen.Size()
+	d.screen.Clear()
 
-	//w.screen.ShowCursor(x, y)
-	//w.screen.SetContent(x, y, rune, []rune{}, style)
+	//d.screen.ShowCursor(x, y)
+	//d.screen.SetContent(x, y, rune, []rune{}, style)
 
-	y := w.height - 1
-	for x := 0; x < w.width; x++ {
-		statusBarStyle := StringToStyle(w.config.GetColor("statusbar"))
-		w.puts(statusBarStyle, x, y, " ")
+	y := d.height - 1
+	for x := 0; x < d.width; x++ {
+		statusBarStyle := StringToStyle(d.config.GetColor("statusbar"))
+		d.puts(statusBarStyle, x, y, " ")
 	}
 }
 
 // Executes incremental redisplay stopping if
 // user is still typing, then picking up
-func (w *Window) Redisplay() {
-	w.redisplay()
-	w.screen.Show()
+func (d *Display) Redisplay() {
+	d.redisplay()
+	d.screen.Show()
 }
 
 // Forced full display
-func (w *Window) Refresh() {
-	w.redisplay()
-	w.screen.Sync()
+func (d *Display) Refresh() {
+	d.redisplay()
+	d.screen.Sync()
 }
 
 // Works as Redisplay but also centers point to prefered screen %
-func (w *Window) Recenter() {
-	w.Frame(true)
-	w.Redisplay()
+func (d *Display) Recenter() {
+	d.Frame(true)
+	d.Redisplay()
 }
 
 // SetPreferredPercentage(perc)
@@ -104,8 +105,8 @@ func (w *Window) Recenter() {
 // GetWindowTop(w) Position - buffer position at visible top left
 // GetWindowBottom(w) Position - buffer position at visible bottom right
 
-func (w *Window) puts(style tcell.Style, x, y int, str string) {
-	s := w.screen
+func (d *Display) puts(style tcell.Style, x, y int, str string) {
+	s := d.screen
 	i := 0
 	var deferred []rune
 	dwidth := 0

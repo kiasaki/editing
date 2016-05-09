@@ -28,8 +28,8 @@ func main() {
 
 	conf := config.ConfigNew()
 	_ = text.WorldNew()
-	window := display.WindowNew(conf)
-	err := window.Init()
+	display := display.DisplayNew(conf)
+	err := display.Init()
 	if err != nil {
 		Fatal(err)
 	}
@@ -38,7 +38,7 @@ func main() {
 	defer func() {
 		err := recover()
 		if err != nil {
-			window.End()
+			display.End()
 			fmt.Print(errors.Wrap(err, 2).ErrorStack())
 			Fatal(err.(error))
 		}
@@ -49,10 +49,10 @@ func main() {
 	// Main loop
 	go func() {
 		for {
-			window.Redisplay()
+			display.Redisplay()
 
 			// Now wait for and handle user event
-			ev := window.Screen().PollEvent()
+			ev := display.Screen().PollEvent()
 			switch ev := ev.(type) {
 			case *tcell.EventKey:
 				switch ev.Key() {
@@ -60,17 +60,17 @@ func main() {
 					close(quit)
 					return
 				case tcell.KeyCtrlL:
-					window.Refresh()
+					display.Refresh()
 				}
 			case *tcell.EventResize:
-				window.Refresh()
+				display.Refresh()
 			}
 		}
 	}()
 
 	<-quit
 
-	err = window.End()
+	err = display.End()
 	if err != nil {
 		Fatal(err)
 	}

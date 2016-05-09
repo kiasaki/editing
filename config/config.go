@@ -26,8 +26,11 @@ func ConfigNew() *Config {
 			"statusbar":      "black,white",
 		},
 		settings: map[string]interface{}{
-			"numbers": true,
-			"light":   false,
+			"numbers":     true,
+			"indent":      true,
+			"tabtospaces": true,
+			"tabwidth":    4,
+			"light":       false,
 		},
 	}
 }
