@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell"
 	"github.com/go-errors/errors"
 
+	"github.com/kiasaki/editing/config"
 	"github.com/kiasaki/editing/display"
 	"github.com/kiasaki/editing/text"
 )
@@ -25,8 +26,9 @@ func main() {
 		os.Exit(0)
 	}
 
+	conf := config.ConfigNew()
 	_ = text.WorldNew()
-	window := display.WindowNew()
+	window := display.WindowNew(conf)
 	err := window.Init()
 	if err != nil {
 		Fatal(err)
@@ -44,10 +46,12 @@ func main() {
 
 	quit := make(chan struct{})
 
+	// Main loop
 	go func() {
 		for {
 			window.Redisplay()
 
+			// Now wait for and handle user event
 			ev := window.Screen().PollEvent()
 			switch ev := ev.(type) {
 			case *tcell.EventKey:

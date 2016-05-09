@@ -6,17 +6,19 @@ import (
 
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
+	"github.com/kiasaki/editing/config"
 	"github.com/mattn/go-runewidth"
 )
 
 type Window struct {
 	screen tcell.Screen
+	config *config.Config
 	width  int
 	height int
 }
 
-func WindowNew() *Window {
-	return &Window{width: 80, height: 24}
+func WindowNew(c *config.Config) *Window {
+	return &Window{config: c, width: 80, height: 24}
 }
 
 func (w *Window) Init() (err error) {
@@ -56,13 +58,20 @@ func (w *Window) Frame(force bool) {
 
 }
 
-// Internal redisplay logic used by Redisplay and Refresh
+// Internal redisplay logic used by Redisplay() and Refresh()
+// TODO: Implement progrsive rediplay and stop if called too fast
 func (w *Window) redisplay() {
 	w.width, w.height = w.screen.Size()
 	w.screen.Clear()
+
 	//w.screen.ShowCursor(x, y)
 	//w.screen.SetContent(x, y, rune, []rune{}, style)
 
+	y := w.height - 1
+	for x := 0; x < w.width; x++ {
+		statusBarStyle := StringToStyle(w.config.GetColor("statusbar"))
+		w.puts(statusBarStyle, x, y, " ")
+	}
 }
 
 // Executes incremental redisplay stopping if
@@ -95,7 +104,8 @@ func (w *Window) Recenter() {
 // GetWindowTop(w) Position - buffer position at visible top left
 // GetWindowBottom(w) Position - buffer position at visible bottom right
 
-func puts(s tcell.Screen, style tcell.Style, x, y int, str string) {
+func (w *Window) puts(style tcell.Style, x, y int, str string) {
+	s := w.screen
 	i := 0
 	var deferred []rune
 	dwidth := 0
