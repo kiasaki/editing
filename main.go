@@ -73,11 +73,14 @@ func main() {
 			switch ev := ev.(type) {
 			case *tcell.EventKey:
 				switch ev.Key() {
-				case tcell.KeyEscape, tcell.KeyEnter:
+				case tcell.KeyEscape, tcell.KeyEnter, tcell.KeyCtrlQ:
 					close(quit)
 					return
-				case tcell.KeyCtrlL:
-					display.Refresh()
+				default:
+					if ev.Key() == tcell.KeyRune {
+						world.CurrentBuffer().InsertChar(ev.Rune())
+						display.Redisplay()
+					}
 				}
 			case *tcell.EventResize:
 				display.Refresh()

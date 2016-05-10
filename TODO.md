@@ -1,0 +1,13 @@
+- Handle long lines spilling over
+- Binding commands to key
+- Defining new commands
+- Defining settings
+- Defining syntax definitions
+- Defining color scheme
+- Progressive redisplay
+- Better contents data structure in Buffer
+- Buffer load
+- Buffer save
+- Search *
+- Highlithing *
+- Fringe warnings/errors

@@ -28,3 +28,7 @@ func WindowNewNode(buffer *text.Buffer) *Window {
 		buffer: buffer,
 	}
 }
+
+func (w *Window) Buffer() *text.Buffer {
+	return w.buffer
+}

@@ -4,6 +4,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
@@ -13,16 +14,18 @@ import (
 )
 
 type Display struct {
-	screen     tcell.Screen
-	config     *config.Config
-	windowTree *Window
-	world      *text.World
-	width      int
-	height     int
+	screen         tcell.Screen
+	config         *config.Config
+	windowTree     *Window
+	currentWindow  *Window
+	awayFromWindow bool
+	world          *text.World
+	width          int
+	height         int
 }
 
 func DisplayNew(c *config.Config, w *text.World) *Display {
-	return &Display{config: c, world: w, width: 80, height: 24}
+	return &Display{config: c, world: w, awayFromWindow: false, width: 80, height: 24}
 }
 
 func (d *Display) Init() (err error) {
@@ -41,6 +44,7 @@ func (d *Display) Init() (err error) {
 
 	// Set initial window tree to one window showing current buffer
 	d.windowTree = WindowNewNode(d.world.CurrentBuffer())
+	d.currentWindow = d.windowTree
 
 	d.screen.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorWhite).
@@ -57,6 +61,18 @@ func (d *Display) End() error {
 
 func (d *Display) Screen() tcell.Screen {
 	return d.screen
+}
+
+func (d *Display) CurrentWindow() *Window {
+	return d.currentWindow
+}
+
+func (d *Display) SetCurrentWindow(window *Window) {
+	if window == nil || window.kind != WindowNode {
+		panic("Display.SetCurrentWindow: Current window must be a node")
+	}
+	d.currentWindow = window
+	d.world.SetCurrentBuffer(window.Buffer().Name())
 }
 
 // Ensure current buffer contents are still visible on screen
@@ -96,16 +112,22 @@ func (d *Display) displayWindowTree(windowTree *Window, x int, y int, width int,
 func (d *Display) displayWindow(windowNode *Window, x int, y int, width int, height int) {
 	buffer := windowNode.buffer
 	statusBarStyle := StringToStyle(d.config.GetColor("statusbar"))
-	d.puts(tcell.StyleDefault, 0, 0, "x: "+strconv.Itoa(x))
-	d.puts(tcell.StyleDefault, 0, 1, "y: "+strconv.Itoa(y))
-	d.puts(tcell.StyleDefault, 0, 2, "w: "+strconv.Itoa(width))
-	d.puts(tcell.StyleDefault, 0, 3, "h: "+strconv.Itoa(height))
-	d.puts(statusBarStyle, x, y+height-1, pad(buffer.Name, width, ' '))
-	/*
-		for x := 0; x < d.width; x++ {
-			d.puts(statusBarStyle, x, y-1, " ")
+
+	for _, line := range buffer.Contents() {
+		if utf8.RuneCountInString(line) > width {
+			// TODO handle breaking/spilling over lines
+			line = line[:width-1]
 		}
-	*/
+		d.puts(tcell.StyleDefault, x, y, line)
+	}
+
+	// Cursor
+	if !d.awayFromWindow && d.currentWindow == windowNode {
+		// TODO x - 1 when in normal mode (assuming insert default now)
+		d.screen.ShowCursor(x+buffer.Point().Char+1, y+buffer.Point().Line-1)
+	}
+
+	d.puts(statusBarStyle, x, y+height-1, pad(buffer.Name(), width, ' '))
 }
 
 // Executes incremental redisplay stopping if
@@ -236,55 +258,13 @@ func StringToColor(str string) tcell.Color {
 		return tcell.ColorDefault
 	default:
 		// Check if this is a 256 color
-		if num, err := strconv.Atoi(str); err == nil {
-			return GetColor256(num)
+		if num, err := strconv.Atoi(str); err == nil && num < 256 && num >= 0 {
+			return tcell.Color(num)
 		}
+
 		// Probably a truecolor hex value
 		return tcell.GetColor(str)
 	}
-}
-
-// GetColor256 returns the tcell color for a number between 0 and 255
-func GetColor256(color int) tcell.Color {
-	colors := []tcell.Color{tcell.ColorBlack, tcell.ColorMaroon, tcell.ColorGreen,
-		tcell.ColorOlive, tcell.ColorNavy, tcell.ColorPurple,
-		tcell.ColorTeal, tcell.ColorSilver, tcell.ColorGray,
-		tcell.ColorRed, tcell.ColorLime, tcell.ColorYellow,
-		tcell.ColorBlue, tcell.ColorFuchsia, tcell.ColorAqua,
-		tcell.ColorWhite, tcell.Color16, tcell.Color17, tcell.Color18, tcell.Color19, tcell.Color20,
-		tcell.Color21, tcell.Color22, tcell.Color23, tcell.Color24, tcell.Color25, tcell.Color26, tcell.Color27, tcell.Color28,
-		tcell.Color29, tcell.Color30, tcell.Color31, tcell.Color32, tcell.Color33, tcell.Color34, tcell.Color35, tcell.Color36,
-		tcell.Color37, tcell.Color38, tcell.Color39, tcell.Color40, tcell.Color41, tcell.Color42, tcell.Color43, tcell.Color44,
-		tcell.Color45, tcell.Color46, tcell.Color47, tcell.Color48, tcell.Color49, tcell.Color50, tcell.Color51, tcell.Color52,
-		tcell.Color53, tcell.Color54, tcell.Color55, tcell.Color56, tcell.Color57, tcell.Color58, tcell.Color59, tcell.Color60,
-		tcell.Color61, tcell.Color62, tcell.Color63, tcell.Color64, tcell.Color65, tcell.Color66, tcell.Color67, tcell.Color68,
-		tcell.Color69, tcell.Color70, tcell.Color71, tcell.Color72, tcell.Color73, tcell.Color74, tcell.Color75, tcell.Color76,
-		tcell.Color77, tcell.Color78, tcell.Color79, tcell.Color80, tcell.Color81, tcell.Color82, tcell.Color83, tcell.Color84,
-		tcell.Color85, tcell.Color86, tcell.Color87, tcell.Color88, tcell.Color89, tcell.Color90, tcell.Color91, tcell.Color92,
-		tcell.Color93, tcell.Color94, tcell.Color95, tcell.Color96, tcell.Color97, tcell.Color98, tcell.Color99, tcell.Color100,
-		tcell.Color101, tcell.Color102, tcell.Color103, tcell.Color104, tcell.Color105, tcell.Color106, tcell.Color107, tcell.Color108,
-		tcell.Color109, tcell.Color110, tcell.Color111, tcell.Color112, tcell.Color113, tcell.Color114, tcell.Color115, tcell.Color116,
-		tcell.Color117, tcell.Color118, tcell.Color119, tcell.Color120, tcell.Color121, tcell.Color122, tcell.Color123, tcell.Color124,
-		tcell.Color125, tcell.Color126, tcell.Color127, tcell.Color128, tcell.Color129, tcell.Color130, tcell.Color131, tcell.Color132,
-		tcell.Color133, tcell.Color134, tcell.Color135, tcell.Color136, tcell.Color137, tcell.Color138, tcell.Color139, tcell.Color140,
-		tcell.Color141, tcell.Color142, tcell.Color143, tcell.Color144, tcell.Color145, tcell.Color146, tcell.Color147, tcell.Color148,
-		tcell.Color149, tcell.Color150, tcell.Color151, tcell.Color152, tcell.Color153, tcell.Color154, tcell.Color155, tcell.Color156,
-		tcell.Color157, tcell.Color158, tcell.Color159, tcell.Color160, tcell.Color161, tcell.Color162, tcell.Color163, tcell.Color164,
-		tcell.Color165, tcell.Color166, tcell.Color167, tcell.Color168, tcell.Color169, tcell.Color170, tcell.Color171, tcell.Color172,
-		tcell.Color173, tcell.Color174, tcell.Color175, tcell.Color176, tcell.Color177, tcell.Color178, tcell.Color179, tcell.Color180,
-		tcell.Color181, tcell.Color182, tcell.Color183, tcell.Color184, tcell.Color185, tcell.Color186, tcell.Color187, tcell.Color188,
-		tcell.Color189, tcell.Color190, tcell.Color191, tcell.Color192, tcell.Color193, tcell.Color194, tcell.Color195, tcell.Color196,
-		tcell.Color197, tcell.Color198, tcell.Color199, tcell.Color200, tcell.Color201, tcell.Color202, tcell.Color203, tcell.Color204,
-		tcell.Color205, tcell.Color206, tcell.Color207, tcell.Color208, tcell.Color209, tcell.Color210, tcell.Color211, tcell.Color212,
-		tcell.Color213, tcell.Color214, tcell.Color215, tcell.Color216, tcell.Color217, tcell.Color218, tcell.Color219, tcell.Color220,
-		tcell.Color221, tcell.Color222, tcell.Color223, tcell.Color224, tcell.Color225, tcell.Color226, tcell.Color227, tcell.Color228,
-		tcell.Color229, tcell.Color230, tcell.Color231, tcell.Color232, tcell.Color233, tcell.Color234, tcell.Color235, tcell.Color236,
-		tcell.Color237, tcell.Color238, tcell.Color239, tcell.Color240, tcell.Color241, tcell.Color242, tcell.Color243, tcell.Color244,
-		tcell.Color245, tcell.Color246, tcell.Color247, tcell.Color248, tcell.Color249, tcell.Color250, tcell.Color251, tcell.Color252,
-		tcell.Color253, tcell.Color254, tcell.Color255,
-	}
-
-	return colors[color]
 }
 
 func pad(str string, length int, padding rune) string {

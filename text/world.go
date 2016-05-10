@@ -34,7 +34,7 @@ func (w *World) CurrentBuffer() *Buffer {
 
 func (w *World) SetCurrentBuffer(name string) bool {
 	for _, buffer := range w.Buffers {
-		if buffer.Name == name {
+		if buffer.Name() == name {
 			w.currentBuffer = buffer
 			return true
 		}
@@ -45,7 +45,7 @@ func (w *World) SetCurrentBuffer(name string) bool {
 
 func (w *World) DeleteBuffer(name string) bool {
 	for i, buffer := range w.Buffers {
-		if buffer.Name == name {
+		if buffer.Name() == name {
 			w.Buffers = append(w.Buffers[:i], w.Buffers[i+1:]...)
 
 			if w.currentBuffer == buffer {
