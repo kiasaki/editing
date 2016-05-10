@@ -1,25 +1,28 @@
 package display
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
 	"github.com/kiasaki/editing/config"
+	"github.com/kiasaki/editing/text"
 	"github.com/mattn/go-runewidth"
 )
 
 type Display struct {
 	screen     tcell.Screen
 	config     *config.Config
-	windowTree struct{}
+	windowTree *Window
+	world      *text.World
 	width      int
 	height     int
 }
 
-func DisplayNew(c *config.Config) *Display {
-	return &Display{config: c, width: 80, height: 24}
+func DisplayNew(c *config.Config, w *text.World) *Display {
+	return &Display{config: c, world: w, width: 80, height: 24}
 }
 
 func (d *Display) Init() (err error) {
@@ -35,6 +38,9 @@ func (d *Display) Init() (err error) {
 	if err != nil {
 		return
 	}
+
+	// Set initial window tree to one window showing current buffer
+	d.windowTree = WindowNewNode(d.world.CurrentBuffer())
 
 	d.screen.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorWhite).
@@ -68,11 +74,38 @@ func (d *Display) redisplay() {
 	//d.screen.ShowCursor(x, y)
 	//d.screen.SetContent(x, y, rune, []rune{}, style)
 
-	y := d.height - 1
-	for x := 0; x < d.width; x++ {
-		statusBarStyle := StringToStyle(d.config.GetColor("statusbar"))
-		d.puts(statusBarStyle, x, y, " ")
+	// (height-1) -> leave one line for the command bar
+	d.displayWindowTree(d.windowTree, 0, 0, d.width, d.height-1)
+}
+
+func (d *Display) displayWindowTree(windowTree *Window, x int, y int, width int, height int) {
+	switch d.windowTree.kind {
+	case WindowNode:
+		d.displayWindow(d.windowTree, x, y, width, height)
+	case WindowHorizontalSplit:
+		halfWidth := int(math.Floor(float64(width) / 2.0))
+		d.displayWindowTree(windowTree.left, x, y, halfWidth, height)
+		d.displayWindowTree(windowTree.right, (x + halfWidth), y, (width - halfWidth), height)
+	case WindowVerticalSplit:
+		halfHeight := int(math.Floor(float64(width) / 2.0))
+		d.displayWindowTree(windowTree.left, x, y, width, halfHeight)
+		d.displayWindowTree(windowTree.right, x, (y + halfHeight), width, (height - halfHeight))
 	}
+}
+
+func (d *Display) displayWindow(windowNode *Window, x int, y int, width int, height int) {
+	buffer := windowNode.buffer
+	statusBarStyle := StringToStyle(d.config.GetColor("statusbar"))
+	d.puts(tcell.StyleDefault, 0, 0, "x: "+strconv.Itoa(x))
+	d.puts(tcell.StyleDefault, 0, 1, "y: "+strconv.Itoa(y))
+	d.puts(tcell.StyleDefault, 0, 2, "w: "+strconv.Itoa(width))
+	d.puts(tcell.StyleDefault, 0, 3, "h: "+strconv.Itoa(height))
+	d.puts(statusBarStyle, x, y+height-1, pad(buffer.Name, width, ' '))
+	/*
+		for x := 0; x < d.width; x++ {
+			d.puts(statusBarStyle, x, y-1, " ")
+		}
+	*/
 }
 
 // Executes incremental redisplay stopping if
@@ -252,4 +285,11 @@ func GetColor256(color int) tcell.Color {
 	}
 
 	return colors[color]
+}
+
+func pad(str string, length int, padding rune) string {
+	for len(str) < length {
+		str = str + string(padding)
+	}
+	return str
 }

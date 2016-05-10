@@ -27,10 +27,18 @@ func main() {
 	}
 
 	conf := config.ConfigNew()
-	_ = text.WorldNew()
-	display := display.DisplayNew(conf)
-	err := display.Init()
+	err := conf.Init()
 	if err != nil {
+		Fatal(err)
+	}
+
+	world := text.WorldNew()
+	world.Init()
+
+	display := display.DisplayNew(conf, world)
+	err = display.Init()
+	if err != nil {
+		display.End()
 		Fatal(err)
 	}
 
@@ -49,6 +57,15 @@ func main() {
 	// Main loop
 	go func() {
 		for {
+
+			/*
+				DEBUG
+				display.End()
+				spew.Dump(display, world)
+				if true {
+					return
+				}
+			*/
 			display.Redisplay()
 
 			// Now wait for and handle user event

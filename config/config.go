@@ -35,6 +35,11 @@ func ConfigNew() *Config {
 	}
 }
 
+// Load up all bundled & user defined settings, color schemes, sytax definitions
+func (c *Config) Init() error {
+	return nil
+}
+
 func (c *Config) GetSetting(name string) (interface{}, bool) {
 	setting, ok := c.settings[name]
 	return setting, ok
