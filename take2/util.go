@@ -98,3 +98,36 @@ func Pad(str string, length int, padding rune) string {
 	}
 	return str
 }
+
+func PadLeft(str string, length int, padding rune) string {
+	for utf8.RuneCountInString(str) < length {
+		str = string(padding) + str
+	}
+	return str
+}
+
+func ReverseString(str string) string {
+	newStr := ""
+	for _, c := range str {
+		newStr += string(c)
+	}
+	return newStr
+}
+
+type LocationComparison int
+
+const (
+	LocationBefore LocationComparison = iota
+	LocationSame                      = iota
+	LocationAfter                     = iota
+)
+
+func CompareLocations(p1 Location, p2 Location) LocationComparison {
+	if p1 == p2 {
+		return LocationSame
+	} else if p1 < p2 {
+		return LocationBefore
+	} else {
+		return LocationAfter
+	}
+}

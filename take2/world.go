@@ -5,14 +5,26 @@ import "github.com/gdamore/tcell"
 type World struct {
 	Config  *Config
 	Display *Display
+	Buffers []*Buffer
 }
 
 func NewWorld() *World {
-	return &World{}
+	return &World{Buffers: []*Buffer{}}
 }
 
 func (w *World) Init() error {
-	return nil
+	var err error
+	w.Config, err = NewConfig()
+	if err != nil {
+		return err
+	}
+
+	w.Display, err = NewDisplay(w.Config)
+	if err != nil {
+		return err
+	}
+
+	return err
 }
 
 func (w *World) Run() {
@@ -20,13 +32,13 @@ func (w *World) Run() {
 
 	go func() {
 		for {
-			/*
-				w.Display.End()
-				spew.Dump(w)
-				if true {
-					return
-				}
-			*/
+			if len(w.Buffers) == 0 {
+				scratchBuffer := NewBuffer("*scratch*", "")
+				w.Buffers = append(w.Buffers, scratchBuffer)
+				w.Display.WindowTree = NewWindowNode(scratchBuffer)
+				w.Display.SetCurrentWindow(w.Display.WindowTree)
+			}
+
 			w.Display.Render()
 
 			// Now wait for and handle user event

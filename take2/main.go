@@ -21,21 +21,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	var err error
 	world = NewWorld()
-
-	world.Config, err = NewConfig()
-	if err != nil {
-		Fatal(err)
-	}
-
-	world.Display, err = NewDisplay()
-	if err != nil {
-		Fatal(err)
-	}
-
-	err = world.Init()
-	if err != nil {
+	if err := world.Init(); err != nil {
 		Fatal(err)
 	}
 
