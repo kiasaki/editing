@@ -66,6 +66,25 @@ func (b *Buffer) Insert(text string) {
 	b.PointMove(len([]rune(text)))
 }
 
+func (b *Buffer) Delete(count int) {
+	if int(b.Point) < b.r.Len()-1 {
+		b.Modified = true
+		b.r = b.r.Delete(int(b.Point)+1, count)
+		b.CacheLines()
+	}
+}
+
+func (b *Buffer) Backspace() {
+	if b.Point > -1 {
+		b.Delete(1)
+		b.PointMove(-1)
+	}
+}
+
+func (b *Buffer) NewLineAndIndent() {
+	b.Insert("\n")
+}
+
 func (b *Buffer) String() string {
 	if b.r.Len() == 0 {
 		return ""

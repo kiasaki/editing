@@ -94,6 +94,9 @@ func (d *Display) displayWindowTree(windowTree *Window, x int, y int, width int,
 }
 
 func (d *Display) displayWindow(window *Window, x int, y int, width int, height int) {
+	var statusBarPointLine int
+	var statusBarPointChar int
+
 	buffer := window.Buffer
 	defaultStyle := StringToStyle(d.Config.GetColor("default"))
 	lineNumberStyle := StringToStyle(d.Config.GetColor("line-number"))
@@ -126,14 +129,20 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 
 		if leftFringeHasNumbers {
 			fringeText := PadLeft(strconv.Itoa(currentY-y+1)+" ", leftFringePadding, ' ')
-			d.write(lineNumberStyle, currentY, x, fringeText)
+			d.write(lineNumberStyle, x, currentY, fringeText)
 		}
 
 		for _, char := range buffer.Lines[currentLine] + " " {
 			// TODO handle "normal" mode cursor position -1
 			charStyle := defaultStyle
-			if windowFocused && currentChar == int(buffer.Point)+1 {
-				charStyle = charStyle.Reverse(true)
+			if currentChar == int(buffer.Point)+1 {
+				if windowFocused {
+					charStyle = charStyle.Reverse(true)
+				}
+
+				// Remember point position so we can show the info in the status bar
+				statusBarPointLine = currentLine + 1
+				statusBarPointChar = currentX - leftFringePadding - x
 			}
 
 			if currentX < width {
@@ -153,7 +162,9 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 		currentY++
 	}
 
-	d.write(statusBarStyle, x, y+height-1, Pad(buffer.Name, width, ' '))
+	statusBarPosText := "(" + strconv.Itoa(statusBarPointLine) + ", " + strconv.Itoa(statusBarPointChar) + ")"
+	statusBarText := "-- " + buffer.Name + " " + statusBarPosText + " "
+	d.write(statusBarStyle, x, y+height-1, Pad(statusBarText, width, '-'))
 }
 
 func (d *Display) write(style tcell.Style, x, y int, str string) int {

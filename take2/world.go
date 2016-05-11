@@ -49,9 +49,23 @@ func (w *World) Run() {
 				case tcell.KeyEscape, tcell.KeyCtrlQ:
 					close(quit)
 					return
+				case tcell.KeyEnter:
+					w.Display.CurrentBuffer().NewLineAndIndent()
+				case tcell.KeyBackspace, tcell.KeyBackspace2:
+					w.Display.CurrentBuffer().Backspace()
+				case tcell.KeyDelete:
+					w.Display.CurrentBuffer().Delete(1)
+				case tcell.KeyLeft:
+					w.Display.CurrentBuffer().PointMove(-1)
+				case tcell.KeyRight:
+					w.Display.CurrentBuffer().PointMove(1)
 				default:
 					if ev.Key() == tcell.KeyRune {
 						w.Display.CurrentBuffer().Insert(string(ev.Rune()))
+					} else if ev.Key() == tcell.KeySpace {
+						w.Display.CurrentBuffer().Insert(" ")
+					} else {
+						w.Display.CurrentBuffer().Insert(ev.Name())
 					}
 				}
 			case *tcell.EventResize:
