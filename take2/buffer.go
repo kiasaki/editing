@@ -32,6 +32,8 @@ type Buffer struct {
 	Point       Location
 	Marks       []*Mark
 
+	Modes []*Mode
+
 	Lines     []string
 	LineCount int
 }
@@ -45,11 +47,15 @@ func NewBuffer(name, text string) *Buffer {
 		Modified: false,
 		Point:    NewLocation(-1),
 		Marks:    []*Mark{},
+
+		Modes: []*Mode{},
 	}
 
 	buffer.LastSaveSum = md5.Sum([]byte(text))
 
 	buffer.CacheLines()
+
+	buffer.EnterNormalMode()
 
 	return buffer
 }
@@ -137,4 +143,50 @@ func (b *Buffer) MarkDelete(mark *Mark) {
 			b.Marks = append(b.Marks, m)
 		}
 	}
+}
+
+func (b *Buffer) ModeAdd(m *Mode) {
+	currentModes := b.Modes
+	b.Modes = []*Mode{}
+	for _, mode := range currentModes {
+		if m.Kind == ModeEditing && mode.Kind == ModeEditing {
+			continue
+		}
+		if m.Kind == ModeMajor && mode.Kind == ModeMajor {
+			continue
+		}
+		b.Modes = append(b.Modes, mode)
+	}
+	b.Modes = append(b.Modes, m)
+}
+func (b *Buffer) EnterNormalMode() {
+}
+func (b *Buffer) EnterInsertMode() {
+}
+func (b *Buffer) EnterReplaceMode() {
+}
+func (b *Buffer) EnterVisualMode() {
+}
+func (b *Buffer) EnterVisualLineMode() {
+}
+
+func (b *Buffer) HandleEvent(w *World, key *Key) bool {
+	/*
+		case tcell.KeyEnter:
+			b.NewLineAndIndent()
+		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			b.Backspace()
+		case tcell.KeyDelete:
+			b.Delete(1)
+		case tcell.KeyLeft:
+			b.PointMove(-1)
+		case tcell.KeyRight:
+			b.PointMove(1)
+		case tcell.KeySpace:
+			b.Insert(" ")
+		default:
+			if ev.Key() == tcell.KeyRune {
+				b.Insert(string(ev.Rune()))
+			}
+	*/
 }

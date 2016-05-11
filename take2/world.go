@@ -3,6 +3,7 @@ package main
 import "github.com/gdamore/tcell"
 
 type World struct {
+	quit    chan (struct{})
 	Config  *Config
 	Display *Display
 	Buffers []*Buffer
@@ -27,8 +28,14 @@ func (w *World) Init() error {
 	return err
 }
 
+func (w *World) Quit() {
+	if w.quit != nil {
+		close(w.quit)
+	}
+}
+
 func (w *World) Run() {
-	quit := make(chan struct{})
+	w.quit = make(chan struct{})
 
 	go func() {
 		for {
@@ -46,27 +53,11 @@ func (w *World) Run() {
 			switch ev := ev.(type) {
 			case *tcell.EventKey:
 				switch ev.Key() {
-				case tcell.KeyEscape, tcell.KeyCtrlQ:
-					close(quit)
+				case tcell.KeyCtrlQ:
+					w.Quit()
 					return
-				case tcell.KeyEnter:
-					w.Display.CurrentBuffer().NewLineAndIndent()
-				case tcell.KeyBackspace, tcell.KeyBackspace2:
-					w.Display.CurrentBuffer().Backspace()
-				case tcell.KeyDelete:
-					w.Display.CurrentBuffer().Delete(1)
-				case tcell.KeyLeft:
-					w.Display.CurrentBuffer().PointMove(-1)
-				case tcell.KeyRight:
-					w.Display.CurrentBuffer().PointMove(1)
 				default:
-					if ev.Key() == tcell.KeyRune {
-						w.Display.CurrentBuffer().Insert(string(ev.Rune()))
-					} else if ev.Key() == tcell.KeySpace {
-						w.Display.CurrentBuffer().Insert(" ")
-					} else {
-						w.Display.CurrentBuffer().Insert(ev.Name())
-					}
+					w.Display.HandleEvent(ev)
 				}
 			case *tcell.EventResize:
 				w.Display.FullRender()
@@ -74,6 +65,6 @@ func (w *World) Run() {
 		}
 	}()
 
-	<-quit
+	<-w.quit
 	w.Display.End()
 }

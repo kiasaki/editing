@@ -49,6 +49,10 @@ func (d *Display) End() {
 	d.Screen.Fini()
 }
 
+func (b *Display) HandleEvent(w *World, key *Key) bool {
+	return b.CurrentBuffer().HandleEvent(w, key)
+}
+
 func (d *Display) CurrentBuffer() *Buffer {
 	return d.CurrentWindow.Buffer
 }
