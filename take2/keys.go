@@ -36,6 +36,10 @@ func NewKeyStroke(representation string) *KeyStroke {
 	lastPart := parts[len(parts)-1]
 	switch lastPart {
 	case "DEL":
+		key = tcell.KeyDelete
+	case "BAK":
+		key = tcell.KeyBackspace
+	case "BAK2":
 		key = tcell.KeyBackspace2
 	case "RET":
 		key = tcell.KeyEnter
@@ -59,6 +63,42 @@ func NewKeyStrokeFromKeyEvent(ev *tcell.EventKey) *KeyStroke {
 		key:     ev.Key(),
 		rune:    ev.Rune(),
 	}
+}
+
+func (ks *KeyStroke) String() string {
+	mods := []string{}
+	if ks.modMask&tcell.ModCtrl != 0 {
+		mods = append(mods, "C")
+	}
+	if ks.modMask&tcell.ModShift != 0 {
+		mods = append(mods, "S")
+	}
+	if ks.modMask&tcell.ModAlt != 0 {
+		mods = append(mods, "A")
+	}
+	if ks.modMask&tcell.ModMeta != 0 {
+		mods = append(mods, "M")
+	}
+
+	name := string(ks.rune)
+	switch ks.key {
+	case tcell.KeyDelete:
+		name = "DEL"
+	case tcell.KeyBackspace:
+		name = "BAK"
+	case tcell.KeyBackspace2:
+		name = "BAK2"
+	case tcell.KeyEnter:
+		name = "RET"
+	case tcell.KeySpace:
+		name = "SPC"
+	case tcell.KeyEscape:
+		name = "ESC"
+	case tcell.KeyTab:
+		name = "TAB"
+	}
+
+	return strings.Join(append(mods, name), "-")
 }
 
 func (k1 *KeyStroke) Matches(k2 *KeyStroke) bool {
@@ -90,6 +130,14 @@ func NewKey(representation string) *Key {
 	return &Key{keys}
 }
 
+func (k *Key) Length() int {
+	return len(k.keys)
+}
+
+func (k *Key) AppendKeyStroke(ks *KeyStroke) {
+	k.keys = append(k.keys, ks)
+}
+
 func (k1 *Key) Matches(k2 *Key) bool {
 	if len(k1.keys) != len(k2.keys) {
 		return false
@@ -102,4 +150,12 @@ func (k1 *Key) Matches(k2 *Key) bool {
 	}
 
 	return true
+}
+
+func (k *Key) String() string {
+	representations := []string{}
+	for _, ks := range k.keys {
+		representations = append(representations, ks.String())
+	}
+	return strings.Join(representations, " ")
 }

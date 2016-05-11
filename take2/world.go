@@ -38,6 +38,8 @@ func (w *World) Run() {
 	w.quit = make(chan struct{})
 
 	go func() {
+		lastKeys := NewKey("")
+
 		for {
 			if len(w.Buffers) == 0 {
 				scratchBuffer := NewBuffer("*scratch*", "")
@@ -47,17 +49,36 @@ func (w *World) Run() {
 			}
 
 			w.Display.Render()
+			w.Display.write(tcell.StyleDefault, 10, 10, lastKeys.String())
+			w.Display.Screen.Show()
 
 			// Now wait for and handle user event
 			ev := w.Display.Screen.PollEvent()
 			switch ev := ev.(type) {
 			case *tcell.EventKey:
-				switch ev.Key() {
-				case tcell.KeyCtrlQ:
+				if ev.Key() == tcell.KeyCtrlQ {
+					// TODO remove safeguard quit once bindings
+					// implentation works well
 					w.Quit()
 					return
-				default:
-					w.Display.HandleEvent(ev)
+				} else if ev.Key() == tcell.KeyCtrlG {
+					// Cancel entered keys
+					lastKeys = NewKey("")
+				} else if ev.Key() == tcell.KeyEscape && lastKeys.Length() > 0 {
+					// Cancel entered keys
+					lastKeys = NewKey("")
+				} else {
+					// Add lastest key store to what was already types and
+					// check if a binding will handle it.
+					// If used up, reset types keys
+					keyStroke := NewKeyStrokeFromKeyEvent(ev)
+					lastKeys.AppendKeyStroke(keyStroke)
+
+					didUseKey := w.Display.HandleEvent(w, lastKeys)
+
+					if didUseKey {
+						lastKeys = NewKey("")
+					}
 				}
 			case *tcell.EventResize:
 				w.Display.FullRender()

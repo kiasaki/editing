@@ -32,7 +32,7 @@ type Buffer struct {
 	Point       Location
 	Marks       []*Mark
 
-	Modes []*Mode
+	Modes *ModeList
 
 	Lines     []string
 	LineCount int
@@ -48,7 +48,7 @@ func NewBuffer(name, text string) *Buffer {
 		Point:    NewLocation(-1),
 		Marks:    []*Mark{},
 
-		Modes: []*Mode{},
+		Modes: NewModeList(),
 	}
 
 	buffer.LastSaveSum = md5.Sum([]byte(text))
@@ -146,47 +146,24 @@ func (b *Buffer) MarkDelete(mark *Mark) {
 }
 
 func (b *Buffer) ModeAdd(m *Mode) {
-	currentModes := b.Modes
-	b.Modes = []*Mode{}
-	for _, mode := range currentModes {
-		if m.Kind == ModeEditing && mode.Kind == ModeEditing {
-			continue
-		}
-		if m.Kind == ModeMajor && mode.Kind == ModeMajor {
-			continue
-		}
-		b.Modes = append(b.Modes, mode)
-	}
-	b.Modes = append(b.Modes, m)
+	b.Modes.Add(m)
 }
 func (b *Buffer) EnterNormalMode() {
+	b.ModeAdd(NormalMode)
 }
 func (b *Buffer) EnterInsertMode() {
+	b.ModeAdd(InsertMode)
 }
 func (b *Buffer) EnterReplaceMode() {
+	b.ModeAdd(ReplaceMode)
 }
 func (b *Buffer) EnterVisualMode() {
+	b.ModeAdd(VisualMode)
 }
 func (b *Buffer) EnterVisualLineMode() {
+	b.ModeAdd(VisualLineMode)
 }
 
 func (b *Buffer) HandleEvent(w *World, key *Key) bool {
-	/*
-		case tcell.KeyEnter:
-			b.NewLineAndIndent()
-		case tcell.KeyBackspace, tcell.KeyBackspace2:
-			b.Backspace()
-		case tcell.KeyDelete:
-			b.Delete(1)
-		case tcell.KeyLeft:
-			b.PointMove(-1)
-		case tcell.KeyRight:
-			b.PointMove(1)
-		case tcell.KeySpace:
-			b.Insert(" ")
-		default:
-			if ev.Key() == tcell.KeyRune {
-				b.Insert(string(ev.Rune()))
-			}
-	*/
+	return b.Modes.HandleEvent(w, b, key)
 }

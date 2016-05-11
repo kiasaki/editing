@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
@@ -166,9 +167,27 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 		currentY++
 	}
 
+	statusBarModesText := "(" + d.statusBarModesText(buffer) + ")"
 	statusBarPosText := "(" + strconv.Itoa(statusBarPointLine) + ", " + strconv.Itoa(statusBarPointChar) + ")"
-	statusBarText := "-- " + buffer.Name + " " + statusBarPosText + " "
+	statusBarText := "-- " + buffer.Name + " " + statusBarPosText + " " + statusBarModesText + " "
 	d.write(statusBarStyle, x, y+height-1, Pad(statusBarText, width, '-'))
+}
+
+func (d *Display) statusBarModesText(buffer *Buffer) string {
+	statusBarModeNames := []string{}
+	// Editing mode
+	if m := buffer.Modes.EditingMode(); m != nil {
+		statusBarModeNames = append(statusBarModeNames, m.Name)
+	}
+	// Major mode
+	if m := buffer.Modes.MajorMode(); m != nil {
+		statusBarModeNames = append(statusBarModeNames, m.Name)
+	}
+	// Minor modes
+	for _, m := range buffer.Modes.MinorModes() {
+		statusBarModeNames = append(statusBarModeNames, m.Name)
+	}
+	return strings.Join(statusBarModeNames, " ")
 }
 
 func (d *Display) write(style tcell.Style, x, y int, str string) int {
