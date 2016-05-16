@@ -1,3 +1,5 @@
+# Todo
+
 - Handle long lines spilling over
 - Binding commands to key
 - Defining new commands
@@ -9,5 +11,43 @@
 - Buffer load
 - Buffer save
 - Search *
-- Highlithing *
+- Highlighting *
 - Fringe warnings/errors
+
+# The big list
+
+- [ ] Auto indent
+- [ ] Custom bindings
+- [ ] Line numbers
+- [ ] Search and replace
+  - [ ] Search
+  - [ ] Replace
+- [ ] Tests
+- [ ] Error handling
+  - [ ] Fatal
+  - [ ] Script/Runtime
+  - [ ] User
+- [ ] Unicode support
+- [ ] Command execution
+- [ ] Movement keys
+- [ ] Visual mode
+  - [ ] Normal
+  - [ ] Line
+- [ ] Help
+  - [ ] General
+  - [ ] Per command
+  - [ ] Tutorial
+- [ ] Options/Configuration
+  - [ ] Save/Load
+  - [ ] Tabs to space
+  - [ ] Tab size
+  - [ ] Color scheme
+- [ ] Undo/Redo
+- [ ] Clipboard
+  - [ ] Copy
+  - [ ] Paste
+  - [ ] Cut
+  - [ ] Registers
+- [ ] Macros
+- [ ] Syntax highlighting
+- [ ] Color schemes
