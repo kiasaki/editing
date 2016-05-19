@@ -81,3 +81,11 @@ func (ml *ModeList) HandleEvent(w *World, b *Buffer, key *Key) bool {
 
 	return false
 }
+
+func (ml *ModeList) IsEditingModeNamed(name string) bool {
+	editingMode := ml.EditingMode()
+	if editingMode == nil {
+		return false
+	}
+	return editingMode.Name == name
+}

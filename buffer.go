@@ -99,15 +99,15 @@ func (b *Buffer) String() string {
 }
 
 func (b *Buffer) GetChar() rune {
-	if int(b.Point) == b.r.Len() {
-		return '\n'
+	if int(b.Point)+2 < b.r.Len()-1 {
+		return b.r.Index(int(b.Point) + 1)
+	} else {
+		return '\x00'
 	}
-	return b.r.Index(int(b.Point) + 1)
 }
 
 func (b *Buffer) MoveToPreviousChar(ch rune) {
-	for i := int(b.Point); i+1 > 0; i-- {
-		b.Point = NewLocation(i)
+	for ; b.Point+1 > 0; b.Point-- {
 		if ch == b.GetChar() {
 			return
 		}
@@ -116,8 +116,7 @@ func (b *Buffer) MoveToPreviousChar(ch rune) {
 
 func (b *Buffer) MoveToNextChar(ch rune) {
 	length := b.r.Len()
-	for i := int(b.Point); i+1 < length; i++ {
-		b.Point = NewLocation(i)
+	for ; int(b.Point)+1 < length-1; b.Point++ {
 		if ch == b.GetChar() {
 			return
 		}

@@ -55,58 +55,90 @@ var ReplaceMode *Mode
 var VisualMode *Mode
 var VisualLineMode *Mode
 
+func moveLeft(w *World, b *Buffer, k *Key) {
+	if b.GetChar() != '\n' {
+		b.PointMove(-1)
+	}
+}
+
+func moveRight(w *World, b *Buffer, k *Key) {
+	if b.Modes.IsEditingModeNamed("normal") {
+		// Normal mode must stop before the \n char and can't hover it
+		b.PointMove(2)
+		if b.GetChar() == '\n' {
+			b.PointMove(-1)
+		}
+		b.PointMove(-1)
+	} else {
+		b.PointMove(1)
+		if b.GetChar() == '\n' {
+			b.PointMove(-1)
+		}
+	}
+}
+
+func moveDown(w *World, b *Buffer, k *Key) {
+	pointBefore := b.Point
+	moveBeginningOfLine(w, b, k)
+	column := pointBefore - b.Point
+
+	moveRight(w, b, k)
+	moveEndOfLine(w, b, k)
+	// Go over \n then to 1st char next line
+	b.PointMove(2)
+	for i := 0; i < int(column); i++ {
+		moveRight(w, b, k)
+	}
+}
+
+func moveUp(w *World, b *Buffer, k *Key) {
+	pointBefore := b.Point
+	moveBeginningOfLine(w, b, k)
+	column := pointBefore - b.Point
+
+	b.PointMove(-1)
+	moveBeginningOfLine(w, b, k)
+	for i := 0; i < int(column); i++ {
+		moveRight(w, b, k)
+	}
+}
+
+func moveBeginningOfLine(w *World, b *Buffer, k *Key) {
+	b.MoveToPreviousChar('\n')
+}
+
+func moveEndOfLine(w *World, b *Buffer, k *Key) {
+	b.MoveToNextChar('\n')
+	if b.Modes.IsEditingModeNamed("normal") {
+		b.PointMove(-2)
+	} else {
+		b.PointMove(-1)
+	}
+}
+
 func init() {
 	NormalMode = NewMode("normal", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("i"): func(w *World, b *Buffer, k *Key) {
 			b.EnterInsertMode()
 		},
 		NewKey("a"): func(w *World, b *Buffer, k *Key) {
-			b.PointMove(1)
 			b.EnterInsertMode()
+			moveRight(w, b, k)
 		},
 		NewKey("A"): func(w *World, b *Buffer, k *Key) {
-			pointBefore := b.Point
-			b.FindFirstInForward("\n")
-			if b.Point == pointBefore {
-				b.Point = NewLocation(len([]rune(b.String())) - 1)
-			}
 			b.EnterInsertMode()
+			moveEndOfLine(w, b, k)
 		},
-		NewKey("h"): func(w *World, b *Buffer, k *Key) {
-			b.PointMove(-1)
-		},
-		NewKey("l"): func(w *World, b *Buffer, k *Key) {
-			b.PointMove(1)
-		},
-		NewKey("j"): func(w *World, b *Buffer, k *Key) {
-			pointBefore := b.Point
-			b.MoveToPreviousChar('\n')
-			column := pointBefore - b.Point
-
-			b.PointMove(1)
-			b.MoveToNextChar('\n')
-			b.PointMove(int(column))
-		},
-		NewKey("k"): func(w *World, b *Buffer, k *Key) {
-			pointBefore := b.Point
-			b.MoveToPreviousChar('\n')
-			column := pointBefore - b.Point
-
-			b.PointMove(-1)
-			b.MoveToPreviousChar('\n')
-			b.PointMove(int(column))
-		},
-		NewKey("0"): func(w *World, b *Buffer, k *Key) {
-			b.MoveToPreviousChar('\n')
-		},
-		NewKey("$"): func(w *World, b *Buffer, k *Key) {
-			b.PointMove(1)
-			b.MoveToNextChar('\n')
-			b.PointMove(-1)
-		},
+		NewKey("h"): moveLeft,
+		NewKey("l"): moveRight,
+		NewKey("j"): moveDown,
+		NewKey("k"): moveUp,
+		NewKey("0"): moveBeginningOfLine,
+		NewKey("$"): moveEndOfLine,
 	})
 	InsertMode = NewMode("insert", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("ESC"): func(w *World, b *Buffer, k *Key) {
+			b.PointMove(-1)
 			b.EnterNormalMode()
 		},
 		NewKey("RET"): func(w *World, b *Buffer, k *Key) {

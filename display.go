@@ -138,8 +138,8 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 		}
 
 		for _, char := range buffer.Lines[currentLine] + " " {
-			// TODO handle "normal" mode cursor position -1
 			charStyle := defaultStyle
+
 			if currentChar == int(buffer.Point)+1 {
 				if windowFocused {
 					charStyle = charStyle.Reverse(true)
