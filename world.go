@@ -45,6 +45,8 @@ func (w *World) Run() {
 	}()
 
 	go func() {
+		defer handlePanics()
+
 		lastKeys := NewKey("")
 
 		for {

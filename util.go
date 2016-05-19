@@ -11,9 +11,24 @@ import (
 	"github.com/go-errors/errors"
 )
 
+func handlePanics() {
+	err := recover()
+	if err != nil {
+		switch err := err.(type) {
+		case error:
+			Fatal(err)
+		case string:
+			Fatal(errors.New(err))
+		default:
+			Fatal(errors.New(fmt.Sprintf("Unknown panic type: %v", err)))
+		}
+	}
+}
+
 func Fatal(err error) {
 	if world != nil && world.Display != nil {
 		world.Display.End()
+		fmt.Fprintf(os.Stderr, "%v\n", "ENDED CLEAN")
 	}
 	fmt.Fprintf(os.Stderr, "%v\n", err)
 	fmt.Print(errors.Wrap(err, 2).ErrorStack())

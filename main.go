@@ -27,12 +27,7 @@ func main() {
 	}
 
 	// From now on the screen is initialized so let's handle panics gacefully
-	defer func() {
-		err := recover()
-		if err != nil {
-			Fatal(err.(error))
-		}
-	}()
+	defer handlePanics()
 
 	world.Run()
 }
