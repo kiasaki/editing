@@ -37,6 +37,8 @@ func (w *World) Quit() {
 func (w *World) Run() {
 	w.quit = make(chan struct{})
 
+	var ev tcell.Event
+
 	go func() {
 		lastKeys := NewKey("")
 
@@ -50,10 +52,14 @@ func (w *World) Run() {
 
 			w.Display.Render()
 			w.Display.write(tcell.StyleDefault, 10, 10, lastKeys.String())
+			switch ev := ev.(type) {
+			case *tcell.EventKey:
+				w.Display.write(tcell.StyleDefault, 10, 12, ev.Name())
+			}
 			w.Display.Screen.Show()
 
 			// Now wait for and handle user event
-			ev := w.Display.Screen.PollEvent()
+			ev = w.Display.Screen.PollEvent()
 			switch ev := ev.(type) {
 			case *tcell.EventKey:
 				if ev.Key() == tcell.KeyCtrlQ {
@@ -74,11 +80,18 @@ func (w *World) Run() {
 					keyStroke := NewKeyStrokeFromKeyEvent(ev)
 					lastKeys.AppendKeyStroke(keyStroke)
 
-					didUseKey := w.Display.HandleEvent(w, lastKeys)
-
-					if didUseKey {
-						lastKeys = NewKey("")
+					// Loop on the set of keys last entered and see if it matches any
+					// bound function for the current mode
+					// "C-a b c M-x" might not be bound, neither is "b c M-x" but if
+					// get to just the last key "M-x" is bound.
+					for i := 0; i < len(lastKeys.keys); i++ {
+						didUseKey := w.Display.HandleEvent(w, &Key{lastKeys.keys[i:]})
+						if didUseKey {
+							lastKeys = NewKey("")
+							break
+						}
 					}
+
 				}
 			case *tcell.EventResize:
 				w.Display.FullRender()

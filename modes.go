@@ -47,11 +47,47 @@ func init() {
 		NewKey("i"): func(w *World, b *Buffer, k *Key) {
 			b.EnterInsertMode()
 		},
+		NewKey("a"): func(w *World, b *Buffer, k *Key) {
+			b.PointMove(1)
+			b.EnterInsertMode()
+		},
+		NewKey("A"): func(w *World, b *Buffer, k *Key) {
+			pointBefore := b.Point
+			b.FindFirstInForward("\n")
+			if b.Point == pointBefore {
+				b.Point = NewLocation(len([]rune(b.String())) - 1)
+			}
+			b.EnterInsertMode()
+		},
 		NewKey("h"): func(w *World, b *Buffer, k *Key) {
 			b.PointMove(-1)
 		},
 		NewKey("l"): func(w *World, b *Buffer, k *Key) {
 			b.PointMove(1)
+		},
+		NewKey("j"): func(w *World, b *Buffer, k *Key) {
+			pointBefore := b.Point
+			b.MoveToPreviousChar('\n')
+			column := pointBefore - b.Point
+
+			b.PointMove(1)
+			b.MoveToNextChar('\n')
+			b.PointMove(int(column))
+		},
+		NewKey("k"): func(w *World, b *Buffer, k *Key) {
+			pointBefore := b.Point
+			b.MoveToPreviousChar('\n')
+			column := pointBefore - b.Point
+
+			b.PointMove(-1)
+			b.MoveToPreviousChar('\n')
+			b.PointMove(int(column))
+		},
+		NewKey("0"): func(w *World, b *Buffer, k *Key) {
+			b.MoveToPreviousChar('\n')
+		},
+		NewKey("$"): func(w *World, b *Buffer, k *Key) {
+			b.MoveToNextChar('\n')
 		},
 	})
 	InsertMode = NewMode("insert", ModeEditing, map[*Key]func(*World, *Buffer, *Key){

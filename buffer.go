@@ -98,6 +98,32 @@ func (b *Buffer) String() string {
 	return b.r.String()
 }
 
+func (b *Buffer) GetChar() rune {
+	if int(b.Point) == b.r.Len() {
+		return '\n'
+	}
+	return b.r.Index(int(b.Point) + 1)
+}
+
+func (b *Buffer) MoveToPreviousChar(ch rune) {
+	for i := int(b.Point); i+1 > 0; i-- {
+		b.Point = NewLocation(i)
+		if ch == b.GetChar() {
+			return
+		}
+	}
+}
+
+func (b *Buffer) MoveToNextChar(ch rune) {
+	length := b.r.Len()
+	for i := int(b.Point); i+1 < length; i++ {
+		b.Point = NewLocation(i)
+		if ch == b.GetChar() {
+			return
+		}
+	}
+}
+
 func (b *Buffer) FindFirstInBackward(search string) {
 	contents := []rune(b.String())
 
@@ -105,11 +131,26 @@ func (b *Buffer) FindFirstInBackward(search string) {
 	search = ReverseString(search)
 	contentsToSearchIn := ""
 
+	if int(b.Point)+1 >= len(contents) {
+		return
+	}
 	for pos := int(b.Point); pos > 0; pos-- {
-		contentsToSearchIn += string(contents[pos])
+		contentsToSearchIn += string(contents[pos+1])
 		if strings.HasSuffix(contentsToSearchIn, search) {
 			b.Point = NewLocation(pos)
 			return
+		}
+	}
+}
+
+func (b *Buffer) FindFirstInForward(search string) {
+	contents := []rune(b.String())
+	contentsToSearchIn := ""
+
+	for pos := int(b.Point); pos+1 < len(contents); pos++ {
+		contentsToSearchIn += string(contents[pos+1])
+		if strings.HasSuffix(contentsToSearchIn, search) {
+			b.Point = NewLocation(pos)
 		}
 	}
 }

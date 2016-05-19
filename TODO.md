@@ -13,6 +13,7 @@
 - Search *
 - Highlighting *
 - Fringe warnings/errors
+- Make KeyPress.String() handle Ctrl-...
 
 # The big list
 
