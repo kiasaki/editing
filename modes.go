@@ -19,12 +19,25 @@ type Mode struct {
 }
 
 func (m *Mode) HandleEvent(w *World, b *Buffer, key *Key) bool {
+	var catchAll func(*World, *Buffer, *Key) = nil
+
 	for cKey, cFn := range m.Commands {
-		if cKey.Matches(key) || cKey == CatchAllKey {
+		// Save catch all as last
+		if cKey == CatchAllKey {
+			catchAll = cFn
+		}
+		if cKey.Matches(key) {
 			cFn(w, b, key)
 			return true
 		}
 	}
+
+	// If we had a catchall key, run it's function
+	if catchAll != nil {
+		catchAll(w, b, key)
+		return true
+	}
+
 	return false
 }
 
