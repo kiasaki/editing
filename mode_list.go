@@ -60,7 +60,7 @@ func (ml *ModeList) HandleEvent(w *World, b *Buffer, key *Key) bool {
 	majorMode := ml.MajorMode()
 	if majorMode != nil {
 		if majorMode.HandleEvent(w, b, key) {
-			// The makor mode handled the key
+			// The major mode handled the key
 			// return so that it doesn't get handled twice
 			return true
 		}

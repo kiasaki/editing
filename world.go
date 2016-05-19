@@ -37,12 +37,18 @@ func (w *World) Quit() {
 func (w *World) Run() {
 	w.quit = make(chan struct{})
 
-	var ev tcell.Event
+	terminalEventChan := make(chan tcell.Event, 20)
+	go func() {
+		for {
+			terminalEventChan <- w.Display.Screen.PollEvent()
+		}
+	}()
 
 	go func() {
 		lastKeys := NewKey("")
 
 		for {
+			// TODO load up files in args
 			if len(w.Buffers) == 0 {
 				scratchBuffer := NewBuffer("*scratch*", "")
 				w.Buffers = append(w.Buffers, scratchBuffer)
@@ -50,51 +56,50 @@ func (w *World) Run() {
 				w.Display.SetCurrentWindow(w.Display.WindowTree)
 			}
 
-			w.Display.Render()
-			w.Display.write(tcell.StyleDefault, 10, 10, lastKeys.String())
-			switch ev := ev.(type) {
-			case *tcell.EventKey:
-				w.Display.write(tcell.StyleDefault, 10, 12, ev.Name())
-			}
-			w.Display.Screen.Show()
-
 			// Now wait for and handle user event
-			ev = w.Display.Screen.PollEvent()
-			switch ev := ev.(type) {
-			case *tcell.EventKey:
-				if ev.Key() == tcell.KeyCtrlQ {
-					// TODO remove safeguard quit once bindings
-					// implentation works well
-					w.Quit()
-					return
-				} else if ev.Key() == tcell.KeyCtrlG {
-					// Cancel entered keys
-					lastKeys = NewKey("")
-				} else if ev.Key() == tcell.KeyEscape && lastKeys.Length() > 0 {
-					// Cancel entered keys
-					lastKeys = NewKey("")
-				} else {
-					// Add lastest key store to what was already types and
-					// check if a binding will handle it.
-					// If used up, reset types keys
-					keyStroke := NewKeyStrokeFromKeyEvent(ev)
-					lastKeys.AppendKeyStroke(keyStroke)
+			select {
+			case ev := <-terminalEventChan:
+				switch ev := ev.(type) {
+				case *tcell.EventKey:
+					// DEBUGING
+					w.Display.write(tcell.StyleDefault, 5, 20, lastKeys.String())
+					w.Display.Screen.Show()
 
-					// Loop on the set of keys last entered and see if it matches any
-					// bound function for the current mode
-					// "C-a b c M-x" might not be bound, neither is "b c M-x" but if
-					// get to just the last key "M-x" is bound.
-					for i := 0; i < len(lastKeys.keys); i++ {
-						didUseKey := w.Display.HandleEvent(w, &Key{lastKeys.keys[i:]})
-						if didUseKey {
-							lastKeys = NewKey("")
-							break
+					if ev.Key() == tcell.KeyCtrlQ {
+						// TODO remove safeguard quit once bindings
+						// implentation works well
+						w.Quit()
+						return
+					} else if ev.Key() == tcell.KeyCtrlG {
+						// Cancel entered keys
+						lastKeys = NewKey("")
+					} else if ev.Key() == tcell.KeyEscape && lastKeys.Length() > 0 {
+						// Cancel entered keys
+						lastKeys = NewKey("")
+					} else {
+						// Add lastest key store to what was already types and
+						// check if a binding will handle it.
+						// If used up, reset types keys
+						keyStroke := NewKeyStrokeFromKeyEvent(ev)
+						lastKeys.AppendKeyStroke(keyStroke)
+
+						// Loop on the set of keys last entered and see if it matches any
+						// bound function for the current mode
+						// "C-a b c M-x" might not be bound, neither is "b c M-x" but if
+						// get to just the last key "M-x" is bound.
+						for i := 0; i < len(lastKeys.keys); i++ {
+							didUseKey := w.Display.HandleEvent(w, &Key{lastKeys.keys[i:]})
+							if didUseKey {
+								lastKeys = NewKey("")
+								break
+							}
 						}
-					}
 
+					}
+				case *tcell.EventResize:
+					// TODO recompute window sizes
 				}
-			case *tcell.EventResize:
-				w.Display.FullRender()
+				w.Display.Render()
 			}
 		}
 	}()

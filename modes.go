@@ -87,7 +87,9 @@ func init() {
 			b.MoveToPreviousChar('\n')
 		},
 		NewKey("$"): func(w *World, b *Buffer, k *Key) {
+			b.PointMove(1)
 			b.MoveToNextChar('\n')
+			b.PointMove(-1)
 		},
 	})
 	InsertMode = NewMode("insert", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
