@@ -1,18 +1,6 @@
 # Todo
 
-- Handle long lines spilling over
-- Binding commands to key
-- Defining new commands
-- Defining settings
-- Defining syntax definitions
-- Defining color scheme
 - Progressive redisplay
-- Better contents data structure in Buffer
-- Buffer load
-- Buffer save
-- Search *
-- Highlighting *
-- Fringe warnings/errors
 - Make KeyPress.String() handle Ctrl-...
 
 # The big list
