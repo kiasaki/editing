@@ -82,7 +82,6 @@ func moveDown(w *World, b *Buffer, k *Key) {
 	moveBeginningOfLine(w, b, k)
 	column := pointBefore - b.Point
 
-	moveRight(w, b, k)
 	moveEndOfLine(w, b, k)
 	// Go over \n then to 1st char next line
 	b.PointMove(2)
@@ -110,10 +109,12 @@ func moveBeginningOfLine(w *World, b *Buffer, k *Key) {
 func moveEndOfLine(w *World, b *Buffer, k *Key) {
 	b.MoveToNextChar('\n')
 	if b.Modes.IsEditingModeNamed("normal") {
-		b.PointMove(-2)
-	} else {
 		b.PointMove(-1)
 	}
+}
+
+func deleteChar(w *World, b *Buffer, k *Key) {
+	b.Delete(1)
 }
 
 func init() {
@@ -135,6 +136,7 @@ func init() {
 		NewKey("k"): moveUp,
 		NewKey("0"): moveBeginningOfLine,
 		NewKey("$"): moveEndOfLine,
+		NewKey("x"): deleteChar,
 	})
 	InsertMode = NewMode("insert", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("ESC"): func(w *World, b *Buffer, k *Key) {
@@ -150,9 +152,7 @@ func init() {
 		NewKey("BAK2"): func(w *World, b *Buffer, k *Key) {
 			b.Backspace()
 		},
-		NewKey("DEL"): func(w *World, b *Buffer, k *Key) {
-			b.Delete(1)
-		},
+		NewKey("DEL"): deleteChar,
 		NewKey("SPC"): func(w *World, b *Buffer, k *Key) {
 			b.Insert(" ")
 		},

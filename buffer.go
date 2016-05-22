@@ -72,12 +72,24 @@ func (b *Buffer) Insert(text string) {
 	b.PointMove(len([]rune(text)))
 }
 
-func (b *Buffer) Delete(count int) {
-	if int(b.Point) < b.r.Len()-1 {
-		b.Modified = true
-		b.r = b.r.Delete(int(b.Point)+1, count)
-		b.CacheLines()
+func (b *Buffer) Delete(count int) string {
+	start := int(b.Point) + 1
+	end := start + count
+
+	if end > b.r.Len() {
+		end = b.r.Len()
 	}
+
+	// Nothing to do here
+	if start == end {
+		return ""
+	}
+
+	b.Modified = true
+	removed := b.r.Substr(start+1, end-start).String()
+	b.r = b.r.Delete(start+1, end-start)
+	b.CacheLines()
+	return removed
 }
 
 func (b *Buffer) Backspace() {
@@ -99,8 +111,9 @@ func (b *Buffer) String() string {
 }
 
 func (b *Buffer) GetChar() rune {
-	if int(b.Point)+2 < b.r.Len()-1 {
-		return b.r.Index(int(b.Point) + 1)
+	index := int(b.Point) + 1
+	if index < b.r.Len() {
+		return b.r.Index(index + 1)
 	} else {
 		return '\x00'
 	}
@@ -116,7 +129,7 @@ func (b *Buffer) MoveToPreviousChar(ch rune) {
 
 func (b *Buffer) MoveToNextChar(ch rune) {
 	length := b.r.Len()
-	for ; int(b.Point)+1 < length-1; b.Point++ {
+	for ; int(b.Point)+1 < length; b.Point++ {
 		if ch == b.GetChar() {
 			return
 		}

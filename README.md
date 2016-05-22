@@ -32,6 +32,7 @@ as `emacs`.
   - <kbd>k</kbd> Moves cursor up
   - <kbd>0</kbd> Moves cursor to the beginning of the line
   - <kbd>$</kbd> Moves cursor to the beginning of the line
+  - <kbd>x</kbd> Delete char under cursor
 - Insert mode
   - <kbd>any visible chars</kbd> Inserts character at cursor's position
   - <kbd>backspace</kbd> Deletes character to the left
