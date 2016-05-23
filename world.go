@@ -1,12 +1,16 @@
 package main
 
-import "github.com/gdamore/tcell"
+import (
+	"github.com/gdamore/tcell"
+	"github.com/kiasaki/ry/lang"
+)
 
 type World struct {
-	quit    chan (struct{})
-	Config  *Config
-	Display *Display
-	Buffers []*Buffer
+	quit        chan (struct{})
+	Config      *Config
+	Display     *Display
+	Buffers     []*Buffer
+	Interpretor *lang.Interp
 }
 
 func NewWorld() *World {
@@ -25,6 +29,7 @@ func (w *World) Init() error {
 		return err
 	}
 
+	w.Interpretor, err = NewInterpretor()
 	return err
 }
 
