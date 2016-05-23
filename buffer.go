@@ -7,19 +7,13 @@ import (
 	"github.com/kiasaki/go-rope"
 )
 
-type Location int
-
-func NewLocation(l int) Location {
-	return Location(l)
-}
-
 type Mark struct {
-	Location Location
-	Fixed    bool
+	Point *Cursor
+	Fixed bool
 }
 
-func NewMark(loc Location, fixed bool) *Mark {
-	return &Mark{Location: loc, Fixed: fixed}
+func NewMark(cur *Cursor, fixed bool) *Mark {
+	return &Mark{Point: cur, Fixed: fixed}
 }
 
 type Buffer struct {
@@ -29,13 +23,12 @@ type Buffer struct {
 	Path        string
 	LastSaveSum [16]byte
 	Modified    bool
-	Point       Location
+	Cursor      *Cursor
 	Marks       []*Mark
 
 	Modes *ModeList
 
-	Lines     []string
-	LineCount int
+	Lines []string
 }
 
 func NewBuffer(name, text string) *Buffer {
@@ -45,11 +38,12 @@ func NewBuffer(name, text string) *Buffer {
 		Name:     name,
 		Path:     name,
 		Modified: false,
-		Point:    NewLocation(-1),
 		Marks:    []*Mark{},
 
 		Modes: NewModeList(),
 	}
+
+	buffer.Cursor = NewCursor(0, 1, buffer)
 
 	buffer.LastSaveSum = md5.Sum([]byte(text))
 
@@ -62,18 +56,17 @@ func NewBuffer(name, text string) *Buffer {
 
 func (b *Buffer) CacheLines() {
 	b.Lines = strings.Split(b.String(), "\n")
-	b.LineCount = len(b.Lines)
 }
 
 func (b *Buffer) Insert(text string) {
 	b.Modified = true
-	b.r = b.r.Insert(int(b.Point)+1, text)
+	b.r = b.r.Insert(b.Cursor.ToBufferChar(), text)
 	b.CacheLines()
-	b.PointMove(len([]rune(text)))
+	b.Cursor.MoveChar(len([]rune(text)))
 }
 
 func (b *Buffer) Delete(count int) string {
-	start := int(b.Point) + 1
+	start := b.Cursor.ToBufferChar()
 	end := start + count
 
 	if end > b.r.Len() {
@@ -89,18 +82,22 @@ func (b *Buffer) Delete(count int) string {
 	removed := b.r.Substr(start+1, end-start).String()
 	b.r = b.r.Delete(start+1, end-start)
 	b.CacheLines()
+	b.Cursor.EnsureValidPosition()
 	return removed
 }
 
 func (b *Buffer) Backspace() {
-	if b.Point > -1 {
+	if b.Cursor.Char > 0 {
 		b.Delete(1)
-		b.PointMove(-1)
+		b.Cursor.Left()
 	}
 }
 
+// TODO implement basic indentation
 func (b *Buffer) NewLineAndIndent() {
 	b.Insert("\n")
+	b.Cursor.Down()
+	b.Cursor.BeginningOfLine()
 }
 
 func (b *Buffer) String() string {
@@ -110,80 +107,13 @@ func (b *Buffer) String() string {
 	return b.r.String()
 }
 
-func (b *Buffer) GetChar() rune {
-	index := int(b.Point) + 1
-	if index < b.r.Len() {
-		return b.r.Index(index + 1)
-	} else {
-		return '\x00'
-	}
-}
-
-func (b *Buffer) MoveToPreviousChar(ch rune) {
-	for ; b.Point+1 > 0; b.Point-- {
-		if ch == b.GetChar() {
-			return
-		}
-	}
-}
-
-func (b *Buffer) MoveToNextChar(ch rune) {
-	length := b.r.Len()
-	for ; int(b.Point)+1 < length; b.Point++ {
-		if ch == b.GetChar() {
-			return
-		}
-	}
-}
-
-func (b *Buffer) FindFirstInBackward(search string) {
-	contents := []rune(b.String())
-
-	// As we are adding charaters backwards to contentsToSearchIn flip "search"
-	search = ReverseString(search)
-	contentsToSearchIn := ""
-
-	if int(b.Point)+1 >= len(contents) {
-		return
-	}
-	for pos := int(b.Point); pos > 0; pos-- {
-		contentsToSearchIn += string(contents[pos+1])
-		if strings.HasSuffix(contentsToSearchIn, search) {
-			b.Point = NewLocation(pos)
-			return
-		}
-	}
-}
-
-func (b *Buffer) FindFirstInForward(search string) {
-	contents := []rune(b.String())
-	contentsToSearchIn := ""
-
-	for pos := int(b.Point); pos+1 < len(contents); pos++ {
-		contentsToSearchIn += string(contents[pos+1])
-		if strings.HasSuffix(contentsToSearchIn, search) {
-			b.Point = NewLocation(pos)
-		}
-	}
-}
-
-func (b *Buffer) PointMove(amount int) {
-	newPoint := int(b.Point) + amount
-	if newPoint < 0 {
-		b.Point = NewLocation(-1)
-	} else if newPoint > b.r.Len()-1 {
-		b.Point = NewLocation(b.r.Len() - 1)
-	} else {
-		b.Point = NewLocation(newPoint)
-	}
-}
-
 func (b *Buffer) IsPointAtMark(mark *Mark) bool {
-	return b.Point == mark.Location
+	return b.Cursor.Line == mark.Point.Line && b.Cursor.Char == mark.Point.Char
 }
 
-func (b *Buffer) MarkCreate() *Mark {
-	mark := NewMark(b.Point, false)
+func (b *Buffer) MarkCreate(fixed bool) *Mark {
+	point := b.Cursor.Clone()
+	mark := NewMark(point, fixed)
 	b.Marks = append(b.Marks, mark)
 	return mark
 }
@@ -219,4 +149,8 @@ func (b *Buffer) EnterVisualLineMode() {
 
 func (b *Buffer) HandleEvent(w *World, key *Key) bool {
 	return b.Modes.HandleEvent(w, b, key)
+}
+
+func (b *Buffer) IsInNormalMode() bool {
+	return b.Modes.IsEditingModeNamed("normal")
 }

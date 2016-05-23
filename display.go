@@ -99,10 +99,10 @@ func (d *Display) displayWindowTree(windowTree *Window, x int, y int, width int,
 }
 
 func (d *Display) displayWindow(window *Window, x int, y int, width int, height int) {
-	var statusBarPointLine int
-	var statusBarPointChar int
-
 	buffer := window.Buffer
+	bufferCursorChar := buffer.Cursor.Char
+	bufferCursorLine := buffer.Cursor.Line
+
 	defaultStyle := StringToStyle(d.Config.GetColor("default"))
 	lineNumberStyle := StringToStyle(d.Config.GetColor("line-number"))
 	statusBarStyle := StringToStyle(d.Config.GetColor("statusbar"))
@@ -111,7 +111,7 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 	leftFringeHasNumbers := false
 	if showLineNumbers, ok := d.Config.GetSetting("numbers"); ok {
 		if showLineNumbers.(bool) {
-			leftFringePadding += len(strconv.Itoa(buffer.LineCount)) + 1
+			leftFringePadding += len(strconv.Itoa(len(buffer.Lines))) + 1
 			leftFringeHasNumbers = true
 		}
 	}
@@ -129,8 +129,11 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 	currentChar := 0
 
 	currentY := y
-	for currentY < height-1 && currentLine < buffer.LineCount {
+	for currentY < height-1 && currentLine < len(buffer.Lines) {
 		currentX := leftFringePadding + x
+		currentChar = 0
+
+		// TODO Handle case where cursor is at line (chage bg style?)
 
 		if leftFringeHasNumbers {
 			fringeText := PadLeft(strconv.Itoa(currentY-y+1)+" ", leftFringePadding, ' ')
@@ -140,14 +143,10 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 		for _, char := range buffer.Lines[currentLine] + " " {
 			charStyle := defaultStyle
 
-			if currentChar == int(buffer.Point)+1 {
+			if currentLine == bufferCursorLine-1 && currentChar == bufferCursorChar {
 				if windowFocused {
 					charStyle = charStyle.Reverse(true)
 				}
-
-				// Remember point position so we can show the info in the status bar
-				statusBarPointLine = currentLine + 1
-				statusBarPointChar = currentX - leftFringePadding - x
 			}
 
 			if currentX < width {
@@ -161,14 +160,12 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 			currentChar++
 		}
 
-		// Handle case where cursor is at line
-
 		currentLine++
 		currentY++
 	}
 
 	statusBarModesText := "(" + d.statusBarModesText(buffer) + ")"
-	statusBarPosText := "(" + strconv.Itoa(statusBarPointLine) + ", " + strconv.Itoa(statusBarPointChar) + ")"
+	statusBarPosText := "(" + strconv.Itoa(bufferCursorLine) + ", " + strconv.Itoa(bufferCursorChar) + ")"
 	statusBarText := "-- " + buffer.Name + " " + statusBarPosText + " " + statusBarModesText + " "
 	d.write(statusBarStyle, x, y+height-1, Pad(statusBarText, width, '-'))
 }

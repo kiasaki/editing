@@ -129,20 +129,25 @@ func ReverseString(str string) string {
 	return newStr
 }
 
-type LocationComparison int
+type CursorComparison int
 
 const (
-	LocationBefore LocationComparison = iota
-	LocationSame                      = iota
-	LocationAfter                     = iota
+	CursorBefore CursorComparison = iota
+	CursorSame                    = iota
+	CursorAfter                   = iota
 )
 
-func CompareLocations(p1 Location, p2 Location) LocationComparison {
-	if p1 == p2 {
-		return LocationSame
-	} else if p1 < p2 {
-		return LocationBefore
-	} else {
-		return LocationAfter
+func CompareCursors(c1 *Cursor, c2 *Cursor) CursorComparison {
+	if c1.Line == c2.Line && c1.Char == c2.Char {
+		return CursorSame
+	} else if c1.Line < c2.Line {
+		return CursorBefore
+	} else if c2.Line > c2.Line {
+		return CursorAfter
+	} else if c1.Char < c2.Char {
+		return CursorBefore
+	} else if c1.Char > c2.Char {
+		return CursorAfter
 	}
+	panic("unreachable")
 }

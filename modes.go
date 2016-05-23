@@ -56,61 +56,27 @@ var VisualMode *Mode
 var VisualLineMode *Mode
 
 func moveLeft(w *World, b *Buffer, k *Key) {
-	if b.GetChar() != '\n' {
-		b.PointMove(-1)
-	}
+	b.Cursor.Left()
 }
 
 func moveRight(w *World, b *Buffer, k *Key) {
-	if b.Modes.IsEditingModeNamed("normal") {
-		// Normal mode must stop before the \n char and can't hover it
-		b.PointMove(2)
-		if b.GetChar() == '\n' {
-			b.PointMove(-1)
-		}
-		b.PointMove(-1)
-	} else {
-		b.PointMove(1)
-		if b.GetChar() == '\n' {
-			b.PointMove(-1)
-		}
-	}
-}
-
-func moveDown(w *World, b *Buffer, k *Key) {
-	pointBefore := b.Point
-	moveBeginningOfLine(w, b, k)
-	column := pointBefore - b.Point
-
-	moveEndOfLine(w, b, k)
-	// Go over \n then to 1st char next line
-	b.PointMove(2)
-	for i := 0; i < int(column); i++ {
-		moveRight(w, b, k)
-	}
+	b.Cursor.Right()
 }
 
 func moveUp(w *World, b *Buffer, k *Key) {
-	pointBefore := b.Point
-	moveBeginningOfLine(w, b, k)
-	column := pointBefore - b.Point
+	b.Cursor.Up()
+}
 
-	b.PointMove(-1)
-	moveBeginningOfLine(w, b, k)
-	for i := 0; i < int(column); i++ {
-		moveRight(w, b, k)
-	}
+func moveDown(w *World, b *Buffer, k *Key) {
+	b.Cursor.Down()
 }
 
 func moveBeginningOfLine(w *World, b *Buffer, k *Key) {
-	b.MoveToPreviousChar('\n')
+	b.Cursor.BeginningOfLine()
 }
 
 func moveEndOfLine(w *World, b *Buffer, k *Key) {
-	b.MoveToNextChar('\n')
-	if b.Modes.IsEditingModeNamed("normal") {
-		b.PointMove(-1)
-	}
+	b.Cursor.EndOfLine()
 }
 
 func deleteChar(w *World, b *Buffer, k *Key) {
@@ -140,7 +106,7 @@ func init() {
 	})
 	InsertMode = NewMode("insert", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("ESC"): func(w *World, b *Buffer, k *Key) {
-			b.PointMove(-1)
+			moveLeft(w, b, k)
 			b.EnterNormalMode()
 		},
 		NewKey("RET"): func(w *World, b *Buffer, k *Key) {
@@ -169,10 +135,10 @@ func init() {
 			}
 		},
 		NewKey("LEFT"): func(w *World, b *Buffer, k *Key) {
-			b.PointMove(-1)
+			moveLeft(w, b, k)
 		},
 		NewKey("RIGHT"): func(w *World, b *Buffer, k *Key) {
-			b.PointMove(1)
+			moveRight(w, b, k)
 		},
 		// Make sure catch all stays last so it doesn't hide other keys
 		CatchAllKey: func(w *World, b *Buffer, k *Key) {
