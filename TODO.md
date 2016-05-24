@@ -2,6 +2,7 @@
 
 - Progressive redisplay
 - Make KeyPress.String() handle Ctrl-...
+- Consider having settings that are numbers be float64 for easier lang interop
 
 # The big list
 
@@ -63,3 +64,26 @@ Buffer->Set({lnum}, {line}, {line}?, ...)
 $main::curwin
 $main::curbuf
 ```
+
+# Some Emacs interface functions
+
+...to consider implementing?
+
+- `(redraw-display)`
+- `(redisplay force?)`
+- `(message format &rest args)`
+- `(with-temp-message message &rest body)` Show message, executes body, removes message, returns body result
+- `(current-message)`
+- `(make-progress-reporter message &optional min-value max-value current-value min-change min-time)`
+- `(progress-reporter-update reporter &optional value)`
+- `(progress-reporter-done reporter)`
+- `(messages-buffer)`
+- `(yes-or-no-p)`
+- `cursor-in-echo-area`
+- `(format)`
+- `(display-warning type message &optional level)` Levels being: emergency, error, warning, debug
+- Handle hiding/make buffer sections invisible (for folding)
+- `before-init-time`
+- `after-init-time`
+- `(save-excursion)`
+

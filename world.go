@@ -29,7 +29,7 @@ func (w *World) Init() error {
 		return err
 	}
 
-	w.Interpretor, err = NewInterpretor()
+	w.Interpretor, err = NewInterpretor(w)
 	return err
 }
 
