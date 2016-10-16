@@ -44,7 +44,7 @@ func NewKeyStroke(representation string) *KeyStroke {
 	case "RET":
 		key = tcell.KeyEnter
 	case "SPC":
-		key = tcell.KeySpace
+		key = tcell.Key(' ')
 	case "ESC":
 		key = tcell.KeyEscape
 	case "TAB":
@@ -90,7 +90,7 @@ func (ks *KeyStroke) String() string {
 		name = "BAK2"
 	case tcell.KeyEnter:
 		name = "RET"
-	case tcell.KeySpace:
+	case tcell.Key(' '):
 		name = "SPC"
 	case tcell.KeyEscape:
 		name = "ESC"
