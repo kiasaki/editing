@@ -40,7 +40,7 @@ func NewDisplay(c *Config) (*Display, error) {
 
 	display.Screen.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorWhite).
-		Background(tcell.ColorBlack))
+		Background(tcell.ColorDefault))
 	display.Screen.Clear()
 
 	return display, nil
