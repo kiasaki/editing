@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/gdamore/tcell"
 )
@@ -58,10 +59,18 @@ func NewKeyStroke(representation string) *KeyStroke {
 }
 
 func NewKeyStrokeFromKeyEvent(ev *tcell.EventKey) *KeyStroke {
+	key, rn := ev.Key(), ev.Rune()
+
+	keyName := ev.Name()
+	if len(keyName) > 5 && keyName[:5] == "Ctrl+" {
+		key = tcell.KeyRune
+		rn = unicode.ToLower([]rune(keyName[5:])[0])
+	}
+
 	return &KeyStroke{
 		modMask: ev.Modifiers(),
-		key:     ev.Key(),
-		rune:    ev.Rune(),
+		key:     key,
+		rune:    rn,
 	}
 }
 

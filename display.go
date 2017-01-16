@@ -15,15 +15,16 @@ type Display struct {
 	Height        int
 	Screen        tcell.Screen
 	Config        *Config
+	World         *World
 	WindowTree    *Window
 	CurrentWindow *Window
 	// Used when focus is on minibuffer
 	AwayFromWindow bool
 }
 
-func NewDisplay(c *Config) (*Display, error) {
+func NewDisplay(c *Config, w *World) (*Display, error) {
 	var err error
-	display := &Display{Config: c, AwayFromWindow: false}
+	display := &Display{Config: c, World: w, AwayFromWindow: false}
 
 	display.Screen, err = tcell.NewScreen()
 	if err != nil {
@@ -65,6 +66,30 @@ func (d *Display) SetCurrentWindow(window *Window) {
 	d.CurrentWindow = window
 }
 
+func (d *Display) ReplaceCurrentWindow(cb func(w *Window) *Window) {
+	d.WindowTree = d.replaceWindow(d.CurrentWindow, d.WindowTree, cb)
+}
+
+func (d *Display) replaceWindow(target *Window, w *Window, cb func(w *Window) *Window) *Window {
+	switch w.Kind {
+	case WindowNode:
+		if d.WindowTree == target {
+			return cb(w)
+		} else {
+			return w
+		}
+	case WindowHorizontalSplit:
+		w.Top = d.replaceWindow(target, w.Top, cb)
+		w.Bottom = d.replaceWindow(target, w.Bottom, cb)
+		return w
+	case WindowVerticalSplit:
+		w.Left = d.replaceWindow(target, w.Left, cb)
+		w.Right = d.replaceWindow(target, w.Right, cb)
+		return w
+	}
+	panic("unreachable")
+}
+
 func (d *Display) Render() {
 	d.render()
 	d.Screen.Show()
@@ -81,6 +106,13 @@ func (d *Display) render() {
 
 	// (height-1) -> leave one line for the command bar
 	d.displayWindowTree(d.WindowTree, 0, 0, d.Width, d.Height-1)
+	d.displayMiniBuffer()
+}
+
+func (d *Display) displayMiniBuffer() {
+	defaultStyle := StringToStyle(d.Config.GetColor("default"))
+	keysTyped := d.World.lastKeys.String()
+	d.write(defaultStyle, d.Width-len(keysTyped)-1, d.Height-1, keysTyped)
 }
 
 func (d *Display) displayWindowTree(windowTree *Window, x int, y int, width int, height int) {
@@ -88,13 +120,20 @@ func (d *Display) displayWindowTree(windowTree *Window, x int, y int, width int,
 	case WindowNode:
 		d.displayWindow(windowTree, x, y, width, height)
 	case WindowHorizontalSplit:
-		halfWidth := int(math.Floor(float64(width) / 2.0))
-		d.displayWindowTree(windowTree.Left, x, y, halfWidth, height)
-		d.displayWindowTree(windowTree.Right, (x + halfWidth), y, (width - halfWidth), height)
+		halfHeight := int(math.Floor(float64(height) / 2.0))
+		d.displayWindowTree(windowTree.Top, x, y, width, halfHeight)
+		d.displayWindowTree(windowTree.Bottom, x, (y + halfHeight), width, (height - halfHeight))
 	case WindowVerticalSplit:
-		halfHeight := int(math.Floor(float64(width) / 2.0))
-		d.displayWindowTree(windowTree.Left, x, y, width, halfHeight)
-		d.displayWindowTree(windowTree.Right, x, (y + halfHeight), width, (height - halfHeight))
+		defaultStyle := StringToStyle(d.Config.GetColor("default"))
+		halfWidth := int(math.Floor(float64(width) / 2.0))
+
+		// add a separator line between both
+		for i := y; i < y+height; i++ {
+			d.write(defaultStyle, x+halfWidth, i, "|")
+		}
+
+		d.displayWindowTree(windowTree.Left, x, y, halfWidth, height)
+		d.displayWindowTree(windowTree.Right, (x + halfWidth + 1), y, (width - halfWidth), height)
 	}
 }
 
@@ -117,9 +156,7 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 	}
 
 	// Only when focused, frame & show cursor
-	windowFocused := false
 	if !d.AwayFromWindow && d.CurrentWindow == window {
-		windowFocused = true
 		statusBarStyle = StringToStyle(d.Config.GetColor("statusbar-active"))
 		window.Frame(height)
 	}
@@ -140,21 +177,21 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 			d.write(lineNumberStyle, x, currentY, fringeText)
 		}
 
-		for _, char := range buffer.Lines[currentLine] + " " {
+		extraSpaceForCursorAtEOL := " "
+		for _, char := range buffer.Lines[currentLine] + extraSpaceForCursorAtEOL {
 			charStyle := defaultStyle
 
 			if currentLine == bufferCursorLine-1 && currentChar == bufferCursorChar {
-				if windowFocused {
+				if d.CurrentWindow.Buffer == buffer {
 					charStyle = charStyle.Reverse(true)
 				}
 			}
 
-			if currentX < width {
+			if currentX < x+width {
 				charCountAdded := d.write(charStyle, currentX, currentY, string(char))
 				currentX += charCountAdded
 			} else {
-				// TODO line not done and we are at the end of window
-				// break
+				// TODO line not done and we are at the end of window, handle reflows?
 			}
 
 			currentChar++
@@ -167,7 +204,8 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 	statusBarModesText := "(" + d.statusBarModesText(buffer) + ")"
 	statusBarPosText := "(" + strconv.Itoa(bufferCursorLine) + ", " + strconv.Itoa(bufferCursorChar) + ")"
 	statusBarText := " " + buffer.Name + " " + statusBarPosText + " " + statusBarModesText + " "
-	d.write(statusBarStyle, x, y+height-1, Pad(statusBarText, width, ' '))
+	goOverVerticalSplitSep := 1
+	d.write(statusBarStyle, x, y+height-1, Pad(statusBarText, width+goOverVerticalSplitSep, ' '))
 }
 
 func (d *Display) statusBarModesText(buffer *Buffer) string {

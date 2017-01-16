@@ -93,6 +93,35 @@ func moveEndOfBuffer(w *World, b *Buffer, k *Key) {
 	b.Cursor.SetChar(0)
 }
 
+func windowSplitHorizontally(w *World, b *Buffer, k *Key) {
+	w.Display.ReplaceCurrentWindow(func(w *Window) *Window {
+		return &Window{
+			Kind:   WindowHorizontalSplit,
+			Top:    w,
+			Bottom: NewWindowNode(w.Buffer),
+		}
+	})
+}
+
+func windowSplitVertically(w *World, b *Buffer, k *Key) {
+	w.Display.ReplaceCurrentWindow(func(w *Window) *Window {
+		return &Window{
+			Kind:  WindowVerticalSplit,
+			Left:  w,
+			Right: NewWindowNode(w.Buffer),
+		}
+	})
+}
+
+func windowMoveLeft(w *World, b *Buffer, k *Key) {
+}
+func windowMoveRight(w *World, b *Buffer, k *Key) {
+}
+func windowMoveUp(w *World, b *Buffer, k *Key) {
+}
+func windowMoveDown(w *World, b *Buffer, k *Key) {
+}
+
 func init() {
 	NormalMode = NewMode("normal", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("i"): func(w *World, b *Buffer, k *Key) {
@@ -115,6 +144,13 @@ func init() {
 		NewKey("x"):   deleteChar,
 		NewKey("g g"): moveBeginingOfBuffer,
 		NewKey("G"):   moveEndOfBuffer,
+
+		NewKey("C-w s"): windowSplitHorizontally,
+		NewKey("C-w v"): windowSplitVertically,
+		NewKey("C-w h"): windowMoveLeft,
+		NewKey("C-w j"): windowMoveUp,
+		NewKey("C-w k"): windowMoveDown,
+		NewKey("C-w l"): windowMoveRight,
 	})
 	InsertMode = NewMode("insert", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("ESC"): func(w *World, b *Buffer, k *Key) {

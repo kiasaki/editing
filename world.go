@@ -6,6 +6,7 @@ import (
 )
 
 type World struct {
+	lastKeys    *Key
 	quit        chan (struct{})
 	Config      *Config
 	Display     *Display
@@ -24,7 +25,7 @@ func (w *World) Init() error {
 		return err
 	}
 
-	w.Display, err = NewDisplay(w.Config)
+	w.Display, err = NewDisplay(w.Config, w)
 	if err != nil {
 		return err
 	}
@@ -52,7 +53,7 @@ func (w *World) Run() {
 	go func() {
 		defer handlePanics()
 
-		lastKeys := NewKey("")
+		w.lastKeys = NewKey("")
 
 		for {
 			// TODO load up files in args
@@ -69,7 +70,7 @@ func (w *World) Run() {
 				switch ev := ev.(type) {
 				case *tcell.EventKey:
 					// DEBUGING
-					w.Display.write(tcell.StyleDefault, 5, 20, lastKeys.String())
+					w.Display.write(tcell.StyleDefault, 5, 20, w.lastKeys.String())
 					w.Display.Screen.Show()
 
 					if ev.Key() == tcell.KeyCtrlQ {
@@ -79,25 +80,25 @@ func (w *World) Run() {
 						return
 					} else if ev.Key() == tcell.KeyCtrlG {
 						// Cancel entered keys
-						lastKeys = NewKey("")
-					} else if ev.Key() == tcell.KeyEscape && lastKeys.Length() > 0 {
+						w.lastKeys = NewKey("")
+					} else if ev.Key() == tcell.KeyEscape && w.lastKeys.Length() > 0 {
 						// Cancel entered keys
-						lastKeys = NewKey("")
+						w.lastKeys = NewKey("")
 					} else {
 						// Add lastest key store to what was already types and
 						// check if a binding will handle it.
 						// If used up, reset types keys
 						keyStroke := NewKeyStrokeFromKeyEvent(ev)
-						lastKeys.AppendKeyStroke(keyStroke)
+						w.lastKeys.AppendKeyStroke(keyStroke)
 
 						// Loop on the set of keys last entered and see if it matches any
 						// bound function for the current mode
 						// "C-a b c M-x" might not be bound, neither is "b c M-x" but if
 						// get to just the last key "M-x" is bound.
-						for i := 0; i < len(lastKeys.keys); i++ {
-							didUseKey := w.Display.HandleEvent(w, &Key{lastKeys.keys[i:]})
+						for i := 0; i < len(w.lastKeys.keys); i++ {
+							didUseKey := w.Display.HandleEvent(w, &Key{w.lastKeys.keys[i:]})
 							if didUseKey {
-								lastKeys = NewKey("")
+								w.lastKeys = NewKey("")
 								break
 							}
 						}
