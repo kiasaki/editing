@@ -166,8 +166,8 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 
 	statusBarModesText := "(" + d.statusBarModesText(buffer) + ")"
 	statusBarPosText := "(" + strconv.Itoa(bufferCursorLine) + ", " + strconv.Itoa(bufferCursorChar) + ")"
-	statusBarText := "-- " + buffer.Name + " " + statusBarPosText + " " + statusBarModesText + " "
-	d.write(statusBarStyle, x, y+height-1, Pad(statusBarText, width, '-'))
+	statusBarText := " " + buffer.Name + " " + statusBarPosText + " " + statusBarModesText + " "
+	d.write(statusBarStyle, x, y+height-1, Pad(statusBarText, width, ' '))
 }
 
 func (d *Display) statusBarModesText(buffer *Buffer) string {

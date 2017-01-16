@@ -24,6 +24,9 @@ func (c *Cursor) currentLineMaxLength() int {
 	if c.buffer.IsInNormalMode() {
 		lineLength = len(line) - 1
 	}
+	if lineLength < 0 {
+		lineLength = 0
+	}
 	return lineLength
 }
 

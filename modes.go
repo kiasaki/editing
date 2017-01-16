@@ -83,6 +83,16 @@ func deleteChar(w *World, b *Buffer, k *Key) {
 	b.Delete(1)
 }
 
+func moveBeginingOfBuffer(w *World, b *Buffer, k *Key) {
+	b.Cursor.SetLine(0)
+	b.Cursor.SetChar(0)
+}
+
+func moveEndOfBuffer(w *World, b *Buffer, k *Key) {
+	b.Cursor.SetLine(len(b.Lines))
+	b.Cursor.SetChar(0)
+}
+
 func init() {
 	NormalMode = NewMode("normal", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("i"): func(w *World, b *Buffer, k *Key) {
@@ -96,13 +106,15 @@ func init() {
 			b.EnterInsertMode()
 			moveEndOfLine(w, b, k)
 		},
-		NewKey("h"): moveLeft,
-		NewKey("l"): moveRight,
-		NewKey("j"): moveDown,
-		NewKey("k"): moveUp,
-		NewKey("0"): moveBeginningOfLine,
-		NewKey("$"): moveEndOfLine,
-		NewKey("x"): deleteChar,
+		NewKey("h"):   moveLeft,
+		NewKey("l"):   moveRight,
+		NewKey("j"):   moveDown,
+		NewKey("k"):   moveUp,
+		NewKey("0"):   moveBeginningOfLine,
+		NewKey("$"):   moveEndOfLine,
+		NewKey("x"):   deleteChar,
+		NewKey("g g"): moveBeginingOfBuffer,
+		NewKey("G"):   moveEndOfBuffer,
 	})
 	InsertMode = NewMode("insert", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("ESC"): func(w *World, b *Buffer, k *Key) {
