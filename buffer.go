@@ -88,8 +88,8 @@ func (b *Buffer) Delete(count int) string {
 
 func (b *Buffer) Backspace() {
 	if b.Cursor.Char > 0 {
-		b.Delete(1)
 		b.Cursor.Left()
+		b.Delete(1)
 	}
 }
 
