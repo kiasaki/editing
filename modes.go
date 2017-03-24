@@ -107,37 +107,118 @@ func moveEndOfBuffer(w *World, b *Buffer, k *Key) {
 }
 
 func windowSplitHorizontally(w *World, b *Buffer, k *Key) {
+	newWindow := NewWindowNode(w.Display.CurrentBuffer())
 	w.Display.ReplaceCurrentWindow(func(w *Window) *Window {
 		return &Window{
 			Kind:   WindowHorizontalSplit,
 			Top:    w,
-			Bottom: NewWindowNode(w.Buffer),
+			Bottom: newWindow,
 		}
 	})
+	w.Display.SetCurrentWindow(newWindow)
 }
 
 func windowSplitVertically(w *World, b *Buffer, k *Key) {
+	newWindow := NewWindowNode(w.Display.CurrentBuffer())
 	w.Display.ReplaceCurrentWindow(func(w *Window) *Window {
 		return &Window{
 			Kind:  WindowVerticalSplit,
 			Left:  w,
-			Right: NewWindowNode(w.Buffer),
+			Right: newWindow,
 		}
 	})
+	w.Display.SetCurrentWindow(newWindow)
+}
+
+func invertDirection(going string) string {
+	switch going {
+	case "top":
+		return "bottom"
+	case "bottom":
+		return "top"
+	case "left":
+		return "right"
+	case "right":
+		return "left"
+	}
+	panic("unreachable")
+}
+
+func windowMove(w *World, going string, nParent int) {
+	w.Display.WindowTree.EnsureParents(nil)
+	window := w.Display.CurrentWindow
+	changedDirection := false
+
+	var searchingForKind WindowKind
+	if going == "left" || going == "right" {
+		searchingForKind = WindowVerticalSplit
+	} else {
+		searchingForKind = WindowHorizontalSplit
+	}
+
+	// dig up
+	for window != nil && window.Kind != searchingForKind {
+		window = window.Parent
+	}
+	// go up some more if we need to
+	for i := nParent; i > 0 && window != nil; i-- {
+		window = window.Parent
+	}
+	if window == nil {
+		// no where to move left
+		return
+	}
+
+	// dig down
+	for window.Kind != WindowNode {
+		switch window.Kind {
+		case WindowHorizontalSplit:
+			if going == "top" {
+				window = window.Top
+			} else {
+				window = window.Bottom
+			}
+		case WindowVerticalSplit:
+			if going == "left" {
+				window = window.Left
+			} else {
+				window = window.Right
+			}
+		}
+		if !changedDirection {
+			changedDirection = true
+			going = invertDirection(going)
+		}
+	}
+
+	// update current window with first leaf found
+	if w.Display.CurrentWindow == window && nParent < 10 {
+		windowMove(w, invertDirection(going), nParent+1)
+		return
+	}
+	w.Display.SetCurrentWindow(window)
 }
 
 func windowMoveLeft(w *World, b *Buffer, k *Key) {
+	windowMove(w, "left", 0)
 }
 func windowMoveRight(w *World, b *Buffer, k *Key) {
+	windowMove(w, "right", 0)
 }
 func windowMoveUp(w *World, b *Buffer, k *Key) {
+	windowMove(w, "top", 0)
 }
 func windowMoveDown(w *World, b *Buffer, k *Key) {
+	windowMove(w, "bottom", 0)
 }
 
 func init() {
 	NormalMode = NewMode("normal", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("i"): func(w *World, b *Buffer, k *Key) {
+			b.EnterInsertMode()
+		},
+		NewKey("I"): func(w *World, b *Buffer, k *Key) {
+			b.Cursor.BeginningOfLine()
 			b.EnterInsertMode()
 		},
 		NewKey("a"): func(w *World, b *Buffer, k *Key) {
@@ -173,9 +254,13 @@ func init() {
 		NewKey("C-w s"): windowSplitHorizontally,
 		NewKey("C-w v"): windowSplitVertically,
 		NewKey("C-w h"): windowMoveLeft,
-		NewKey("C-w j"): windowMoveUp,
-		NewKey("C-w k"): windowMoveDown,
+		NewKey("C-w j"): windowMoveDown,
+		NewKey("C-w k"): windowMoveUp,
 		NewKey("C-w l"): windowMoveRight,
+		NewKey("C-h"):   windowMoveLeft,
+		NewKey("C-j"):   windowMoveDown,
+		NewKey("C-k"):   windowMoveUp,
+		NewKey("C-l"):   windowMoveRight,
 	})
 	InsertMode = NewMode("insert", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
 		NewKey("ESC"): func(w *World, b *Buffer, k *Key) {

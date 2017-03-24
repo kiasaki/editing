@@ -9,8 +9,10 @@ const (
 )
 
 type Window struct {
-	// Tree related
 	Kind   WindowKind
+	Parent *Window
+
+	// Tree related
 	Top    *Window
 	Bottom *Window
 	Left   *Window
@@ -26,6 +28,18 @@ func NewWindowNode(buffer *Buffer) *Window {
 	return &Window{
 		Kind:   WindowNode,
 		Buffer: buffer,
+	}
+}
+
+func (w *Window) EnsureParents(parent *Window) {
+	w.Parent = parent
+	switch w.Kind {
+	case WindowHorizontalSplit:
+		w.Top.EnsureParents(w)
+		w.Bottom.EnsureParents(w)
+	case WindowVerticalSplit:
+		w.Left.EnsureParents(w)
+		w.Right.EnsureParents(w)
 	}
 }
 

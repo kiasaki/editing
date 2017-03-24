@@ -73,7 +73,7 @@ func (d *Display) ReplaceCurrentWindow(cb func(w *Window) *Window) {
 func (d *Display) replaceWindow(target *Window, w *Window, cb func(w *Window) *Window) *Window {
 	switch w.Kind {
 	case WindowNode:
-		if d.WindowTree == target {
+		if w == target {
 			return cb(w)
 		} else {
 			return w
@@ -166,7 +166,7 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 	currentChar := 0
 
 	currentY := y
-	for currentY < height-1 && currentLine < len(buffer.Lines) {
+	for currentY < y+height-1 && currentLine < len(buffer.Lines) {
 		currentX := leftFringePadding + x
 		currentChar = 0
 
@@ -182,7 +182,7 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 			charStyle := defaultStyle
 
 			if currentLine == bufferCursorLine-1 && currentChar == bufferCursorChar {
-				if d.CurrentWindow.Buffer == buffer {
+				if d.CurrentWindow == window {
 					charStyle = charStyle.Reverse(true)
 				}
 			}
