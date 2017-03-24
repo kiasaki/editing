@@ -49,6 +49,7 @@ func NewMode(name string, kind ModeKind, commands map[*Key]func(*World, *Buffer,
 	}
 }
 
+var CommandMode *Mode
 var NormalMode *Mode
 var InsertMode *Mode
 var ReplaceMode *Mode
@@ -213,7 +214,36 @@ func windowMoveDown(w *World, b *Buffer, k *Key) {
 }
 
 func init() {
+	CommandMode = NewMode("command", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
+		NewKey("ESC"): func(w *World, b *Buffer, k *Key) {
+			w.Command = ""
+			b.EnterNormalMode()
+		},
+		NewKey("RET"): func(w *World, b *Buffer, k *Key) {
+			w.ExecuteCommand()
+			w.Command = ""
+			b.EnterNormalMode()
+		},
+		NewKey("BAK2"): func(w *World, b *Buffer, k *Key) {
+			if len(w.Command) > 1 { // 1 so we leave ':'
+				w.Command = w.Command[0 : len(w.Command)-1]
+			}
+		},
+		NewKey("C-u"): func(w *World, b *Buffer, k *Key) {
+			w.Command = ":"
+		},
+		CatchAllKey: func(w *World, b *Buffer, k *Key) {
+			lastKeyStroke := k.keys[len(k.keys)-1]
+			if lastKeyStroke.key == tcell.KeyRune {
+				w.Command += string(lastKeyStroke.rune)
+			}
+		},
+	})
 	NormalMode = NewMode("normal", ModeEditing, map[*Key]func(*World, *Buffer, *Key){
+		NewKey(":"): func(w *World, b *Buffer, k *Key) {
+			w.Command = ":"
+			b.EnterCommandMode()
+		},
 		NewKey("i"): func(w *World, b *Buffer, k *Key) {
 			b.EnterInsertMode()
 		},
@@ -257,7 +287,7 @@ func init() {
 		NewKey("C-w j"): windowMoveDown,
 		NewKey("C-w k"): windowMoveUp,
 		NewKey("C-w l"): windowMoveRight,
-		NewKey("C-h"):   windowMoveLeft,
+		NewKey("BAK"):   windowMoveLeft,
 		NewKey("C-j"):   windowMoveDown,
 		NewKey("C-k"):   windowMoveUp,
 		NewKey("C-l"):   windowMoveRight,
@@ -269,9 +299,6 @@ func init() {
 		},
 		NewKey("RET"): func(w *World, b *Buffer, k *Key) {
 			b.NewLineAndIndent()
-		},
-		NewKey("BAK"): func(w *World, b *Buffer, k *Key) {
-			b.Backspace()
 		},
 		NewKey("BAK2"): func(w *World, b *Buffer, k *Key) {
 			b.Backspace()

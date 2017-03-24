@@ -112,6 +112,10 @@ func (d *Display) render() {
 func (d *Display) displayMiniBuffer() {
 	defaultStyle := StringToStyle(d.Config.GetColor("default"))
 	keysTyped := d.World.lastKeys.String()
+	if len(d.World.Command) > 0 {
+		d.write(defaultStyle, 0, d.Height-1, d.World.Command)
+		d.write(defaultStyle.Reverse(true), len(d.World.Command), d.Height-1, " ")
+	}
 	d.write(defaultStyle, d.Width-len(keysTyped)-1, d.Height-1, keysTyped)
 }
 
@@ -141,6 +145,7 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 	buffer := window.Buffer
 	bufferCursorChar := buffer.Cursor.Char
 	bufferCursorLine := buffer.Cursor.Line
+	inCommandMode := buffer.Modes.IsEditingModeNamed("command")
 
 	defaultStyle := StringToStyle(d.Config.GetColor("default"))
 	lineNumberStyle := StringToStyle(d.Config.GetColor("line-number"))
@@ -182,7 +187,7 @@ func (d *Display) displayWindow(window *Window, x int, y int, width int, height 
 			charStyle := defaultStyle
 
 			if currentLine == bufferCursorLine-1 && currentChar == bufferCursorChar {
-				if d.CurrentWindow == window {
+				if d.CurrentWindow == window && !inCommandMode {
 					charStyle = charStyle.Reverse(true)
 				}
 			}

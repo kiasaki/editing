@@ -11,6 +11,7 @@ type World struct {
 	Display     *Display
 	Buffers     []*Buffer
 	Interpretor interface{}
+	Command     string
 }
 
 func NewWorld() *World {
@@ -50,17 +51,11 @@ func (w *World) Run() {
 	}()
 
 	go func() {
-		defer handlePanics()
-
 		w.lastKeys = NewKey("")
 
 		for {
-			// TODO load up files in args
 			if len(w.Buffers) == 0 {
-				scratchBuffer := NewBuffer("*scratch*", "")
-				w.Buffers = append(w.Buffers, scratchBuffer)
-				w.Display.WindowTree = NewWindowNode(scratchBuffer)
-				w.Display.SetCurrentWindow(w.Display.WindowTree)
+				w.Quit()
 			}
 
 			// Now wait for and handle user event
@@ -68,10 +63,6 @@ func (w *World) Run() {
 			case ev := <-terminalEventChan:
 				switch ev := ev.(type) {
 				case *tcell.EventKey:
-					// DEBUGING
-					w.Display.write(tcell.StyleDefault, 5, 20, w.lastKeys.String())
-					w.Display.Screen.Show()
-
 					if ev.Key() == tcell.KeyCtrlQ {
 						// TODO remove safeguard quit once bindings
 						// implentation works well

@@ -131,6 +131,9 @@ func (b *Buffer) MarkDelete(mark *Mark) {
 func (b *Buffer) ModeAdd(m *Mode) {
 	b.Modes.Add(m)
 }
+func (b *Buffer) EnterCommandMode() {
+	b.ModeAdd(CommandMode)
+}
 func (b *Buffer) EnterNormalMode() {
 	b.ModeAdd(NormalMode)
 }
@@ -153,4 +156,11 @@ func (b *Buffer) HandleEvent(w *World, key *Key) bool {
 
 func (b *Buffer) IsInNormalMode() bool {
 	return b.Modes.IsEditingModeNamed("normal")
+}
+
+func (b *Buffer) Save(w *World) {
+}
+
+func (b *Buffer) Close(w *World) {
+	w.Quit()
 }
