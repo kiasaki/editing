@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/gdamore/tcell"
-	"github.com/kiasaki/ry/lang"
 )
 
 type World struct {
@@ -11,7 +10,7 @@ type World struct {
 	Config      *Config
 	Display     *Display
 	Buffers     []*Buffer
-	Interpretor *lang.Interp
+	Interpretor interface{}
 }
 
 func NewWorld() *World {

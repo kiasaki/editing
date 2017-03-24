@@ -83,6 +83,19 @@ func deleteChar(w *World, b *Buffer, k *Key) {
 	b.Delete(1)
 }
 
+func deleteLine(w *World, b *Buffer, k *Key) {
+	char := b.Cursor.Char
+
+	b.Cursor.SetChar(0)
+	start := b.Cursor.ToBufferChar()
+	b.Cursor.EndOfLine()
+	end := b.Cursor.ToBufferChar()
+	b.Cursor.SetChar(0)
+	b.Delete((end + 2) - start)
+
+	b.Cursor.SetChar(char)
+}
+
 func moveBeginingOfBuffer(w *World, b *Buffer, k *Key) {
 	b.Cursor.SetLine(0)
 	b.Cursor.SetChar(0)
@@ -129,11 +142,22 @@ func init() {
 		},
 		NewKey("a"): func(w *World, b *Buffer, k *Key) {
 			b.EnterInsertMode()
-			moveRight(w, b, k)
+			b.Cursor.Right()
 		},
 		NewKey("A"): func(w *World, b *Buffer, k *Key) {
 			b.EnterInsertMode()
-			moveEndOfLine(w, b, k)
+			b.Cursor.EndOfLine()
+		},
+		NewKey("o"): func(w *World, b *Buffer, k *Key) {
+			b.EnterInsertMode()
+			b.Cursor.EndOfLine()
+			b.Insert("\n")
+			b.Cursor.Down()
+		},
+		NewKey("O"): func(w *World, b *Buffer, k *Key) {
+			b.Cursor.BeginningOfLine()
+			b.Insert("\n")
+			b.EnterInsertMode()
 		},
 		NewKey("h"):   moveLeft,
 		NewKey("l"):   moveRight,
@@ -142,6 +166,7 @@ func init() {
 		NewKey("0"):   moveBeginningOfLine,
 		NewKey("$"):   moveEndOfLine,
 		NewKey("x"):   deleteChar,
+		NewKey("d d"): deleteLine,
 		NewKey("g g"): moveBeginingOfBuffer,
 		NewKey("G"):   moveEndOfBuffer,
 
