@@ -1,4 +1,0 @@
-(defn normal-top-level ()
-  )
-
-(setq top-level normal-top-level)

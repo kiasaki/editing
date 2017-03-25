@@ -12,6 +12,8 @@ type World struct {
 	Buffers     []*Buffer
 	Interpretor interface{}
 	Command     string
+	Message     string
+	MessageType string
 }
 
 func NewWorld() *World {

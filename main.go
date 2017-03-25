@@ -4,6 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	lua "github.com/Shopify/go-lua"
+	"github.com/Shopify/goluago"
 )
 
 const (
@@ -12,7 +15,10 @@ const (
 
 var flagVersion = flag.Bool("version", false, "Show editor's version")
 
-var world *World
+var (
+	world *World
+	L     *lua.State
+)
 
 func main() {
 	flag.Parse()
@@ -25,6 +31,20 @@ func main() {
 	if err := world.Init(); err != nil {
 		Fatal(err)
 	}
+
+	L = lua.NewState()
+	lua.OpenLibraries(L)
+	goluago.Open(L)
+	L.Register("message", func(l *lua.State) int {
+		message := lua.CheckString(l, 1)
+		typ := "info"
+		if l.Top() == 2 {
+			typ = lua.CheckString(l, 2)
+		}
+		world.Message = message
+		world.MessageType = typ
+		return 0
+	})
 
 	// From now on the screen is initialized so let's handle panics gacefully
 	defer handlePanics()
