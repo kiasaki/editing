@@ -12,6 +12,7 @@ import (
 
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
+	"github.com/go-errors/errors"
 	runewidth "github.com/mattn/go-runewidth"
 )
 
@@ -110,10 +111,15 @@ var modes = map[string]*mode{
 		k("A"):       enter_insert_mode_eol,
 		k("o"):       enter_insert_mode_nl,
 		k("O"):       enter_insert_mode_nl_up,
+		k("x"):       remove_char,
+		k("d d"):     remove_line,
+		k("u"):       command_undo,
+		k("C-r"):     command_redo,
 	}},
 	"insert": &mode{name: "insert", bindings: map[*key_list]command_fn{
 		k("ESC"):  enter_normal_mode,
 		k("RET"):  insert_enter,
+		k("BAK"):  insert_backspace,
 		k("$any"): insert,
 	}},
 }
@@ -192,7 +198,20 @@ func enter_insert_mode_nl_up(vt *view_tree, b *buffer, kl *key_list) {
 
 func insert_enter(vt *view_tree, b *buffer, kl *key_list) {
 	b.insert([]rune("\n"))
+	move_down(vt, b, kl)
 	move_line_beg(vt, b, kl)
+}
+func insert_backspace(vt *view_tree, b *buffer, kl *key_list) {
+	if b.cursor.char == 0 {
+		if b.cursor.line != 0 {
+			move_up(vt, b, kl)
+			move_line_end(vt, b, kl)
+			b.remove(1)
+		}
+	} else {
+		move_left(vt, b, kl)
+		b.remove(1)
+	}
 }
 func insert(vt *view_tree, b *buffer, kl *key_list) {
 	k := kl.keys[len(kl.keys)-1]
@@ -200,6 +219,21 @@ func insert(vt *view_tree, b *buffer, kl *key_list) {
 		b.insert([]rune{k.chr})
 		move_right(vt, b, kl)
 	}
+}
+
+func remove_char(vt *view_tree, b *buffer, kl *key_list) {
+	b.remove(1)
+}
+func remove_line(vt *view_tree, b *buffer, kl *key_list) {
+	move_line_beg(vt, b, kl)
+	b.remove(len(b.data[b.cursor.line]) + 1)
+}
+
+func command_undo(vt *view_tree, b *buffer, kl *key_list) {
+	b.undo()
+}
+func command_redo(vt *view_tree, b *buffer, kl *key_list) {
+	b.redo()
 }
 
 // }}}
@@ -211,7 +245,11 @@ type location struct {
 }
 
 func new_location(l, c int) *location {
-	return &location{l, c}
+	return &location{line: l, char: c}
+}
+
+func (loc *location) clone() *location {
+	return &location{line: loc.line, char: loc.char}
 }
 
 type char_range struct {
@@ -224,32 +262,38 @@ func new_char_range(b, e int) *char_range {
 }
 
 type buffer struct {
-	data     [][]rune
-	history  []*action
-	name     string
-	path     string
-	modified bool
-	cursor   *location
+	data          [][]rune
+	history       []*action
+	history_index int
+	name          string
+	path          string
+	modified      bool
+	cursor        *location
 }
 
 func new_buffer(name string, path string) *buffer {
 	return &buffer{
-		data:     [][]rune{{}},
-		history:  []*action{},
-		name:     name,
-		path:     path,
-		modified: false,
-		cursor:   new_location(0, 0),
+		data:          [][]rune{{}},
+		history:       []*action{},
+		history_index: -1,
+		name:          name,
+		path:          path,
+		modified:      false,
+		cursor:        new_location(0, 0),
+	}
+}
+
+func (b *buffer) char_at(l, c int) rune {
+	line := b.data[l]
+	if c < len(line) {
+		return line[c]
+	} else {
+		return '\n'
 	}
 }
 
 func (b *buffer) char_under_cursor() rune {
-	line := b.data[b.cursor.line]
-	if b.cursor.char < len(line) {
-		return line[b.cursor.char]
-	} else {
-		return '\n'
-	}
+	return b.char_at(b.cursor.line, b.cursor.char)
 }
 
 func (b *buffer) first_line() bool {
@@ -336,8 +380,82 @@ func (b *buffer) move_word_backward() bool {
 }
 
 func (b *buffer) insert(data []rune) {
-	c, l := b.cursor.char, b.cursor.line
-	for _, ch := range data {
+	a := new_action(action_type_insert, b.cursor.clone(), data)
+	b.history_index++
+	b.history = try_merge_history(b.history[:b.history_index], a)
+	a.apply(b)
+}
+
+func (b *buffer) remove(n int) []rune {
+	a := new_action(action_type_remove, b.cursor.clone(), make([]rune, n))
+	b.history_index++
+	b.history = try_merge_history(b.history[:b.history_index], a)
+	a.apply(b)
+	return a.data
+}
+
+func (b *buffer) undo() {
+	if b.history_index >= 0 && b.history_index != -1 {
+		b.history[b.history_index].revert(b)
+		b.history_index--
+	} else {
+		message("Noting to undo!")
+	}
+}
+
+func (b *buffer) redo() {
+	if b.history_index+1 < len(b.history) && len(b.history) > b.history_index+1 {
+		b.history_index++
+		b.history[b.history_index].apply(b)
+	} else {
+		message("Noting to redo!")
+	}
+}
+
+func try_merge_history(al []*action, a *action) []*action {
+	return append(al, a)
+}
+
+// }}}
+
+// {{{ action
+type action_type int
+
+const (
+	action_type_insert action_type = 1
+	action_type_remove             = -1
+)
+
+type action struct {
+	typ  action_type
+	loc  *location
+	data []rune
+}
+
+func new_action(typ action_type, loc *location, data []rune) *action {
+	return &action{typ: typ, loc: loc, data: data}
+}
+
+func (a *action) apply(b *buffer) {
+	a.do(b, a.typ)
+}
+
+func (a *action) revert(b *buffer) {
+	a.do(b, -a.typ)
+}
+
+func (a *action) do(b *buffer, typ action_type) {
+	if typ == action_type_insert {
+		a.insert(b)
+	} else {
+		a.remove(b)
+	}
+}
+
+func (a *action) insert(b *buffer) {
+	c, l := a.loc.char, a.loc.line
+	for i := len(a.data) - 1; i >= 0; i-- {
+		ch := a.data[i]
 		if ch == '\n' {
 			rest := append([]rune(nil), b.data[l][c:]...)
 			b.data[l] = b.data[l][:c]
@@ -350,24 +468,24 @@ func (b *buffer) insert(data []rune) {
 	}
 }
 
-func (b *buffer) remove(n int) {
-	// TODO
-}
-
-// }}}
-
-// {{{ action
-type action_type int
-
-const (
-	action_type_insert action_type = iota
-	action_type_remove
-)
-
-type action struct {
-	typ  action_type
-	loc  *location
-	data []rune
+func (a *action) remove(b *buffer) {
+	n := len(a.data)
+	c, l := a.loc.char, a.loc.line
+	removed := []rune{}
+	for i := 0; i < n; i++ {
+		removed = append(removed, b.char_at(l, c))
+		if b.char_at(l, c) == '\n' {
+			if len(b.data)-1 == l {
+				a.data = removed
+				return
+			}
+			b.data[l] = append(b.data[l], b.data[l+1]...)
+			b.data = append(b.data[:l+1], b.data[l+2:]...)
+		} else {
+			b.data[l] = append(b.data[l][:c], b.data[l][c+1:]...)
+		}
+	}
+	a.data = removed
 }
 
 // }}}
@@ -659,11 +777,11 @@ func new_key_from_event(ev *tcell.EventKey) *key {
 		r = 'h'
 	}
 
-	return &key{
-		mod: ev.Modifiers(),
-		key: k,
-		chr: r,
+	if k != tcell.KeyRune {
+		r = 0
 	}
+
+	return &key{mod: ev.Modifiers(), key: k, chr: r}
 }
 
 func new_key(rep string) *key {
@@ -716,7 +834,7 @@ func new_key(rep string) *key {
 		r = []rune(last_part)[0]
 	}
 
-	return &key{mod_mask, k, r}
+	return &key{mod: mod_mask, key: k, chr: r}
 }
 
 func (k *key) String() string {
@@ -832,14 +950,7 @@ func fatal(message string) {
 
 func handle_panics() {
 	if err := recover(); err != nil {
-		switch e := err.(type) {
-		case string:
-			fatal(e)
-		case error:
-			fatal(e.Error())
-		default:
-			fatal(fmt.Sprintf("Unknown panic type: %v", err))
-		}
+		fatal(fmt.Sprintf("ry fatal error:\n%v\n%s", err, errors.Wrap(err, 2).ErrorStack()))
 	}
 }
 
