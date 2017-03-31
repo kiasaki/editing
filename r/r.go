@@ -23,6 +23,7 @@ const (
 
 var (
 	keys_entered                     = new_key_list("")
+	last_key                         = new_key_list("")
 	term_events                      = make(chan tcell.Event, 20)
 	clipboard                        = []rune("")
 	editor_mode                      = "normal"
@@ -59,13 +60,13 @@ top:
 					break top
 				} else {
 					keys_entered.add_key(new_key_from_event(ev))
-					// TODO handle
 
 					mode := modes[editor_mode]
 					for kl, f := range mode.bindings {
 						if matched := keys_entered.has_suffix(kl); matched != nil {
 							keys_entered = k("")
 							f(current_view_tree, current_view_tree.leaf.buf, matched)
+							last_key = matched
 						}
 					}
 				}
@@ -88,19 +89,32 @@ type mode struct {
 
 var modes = map[string]*mode{
 	"normal": &mode{name: "normal", bindings: map[*key_list]command_fn{
-		k("h"):   move_left,
-		k("j"):   move_down,
-		k("k"):   move_up,
-		k("l"):   move_right,
-		k("0"):   move_line_beg,
-		k("$"):   move_line_end,
-		k("g g"): move_top,
-		k("G"):   move_bottom,
-		k("C-u"): move_jump_up,
-		k("C-d"): move_jump_down,
-		k("z z"): move_center_line,
-		k("w"):   move_word_forward,
-		k("b"):   move_word_backward,
+		k("h"):       move_left,
+		k("j"):       move_down,
+		k("k"):       move_up,
+		k("l"):       move_right,
+		k("0"):       move_line_beg,
+		k("$"):       move_line_end,
+		k("g g"):     move_top,
+		k("G"):       move_bottom,
+		k("C-u"):     move_jump_up,
+		k("C-d"):     move_jump_down,
+		k("z z"):     move_center_line,
+		k("w"):       move_word_forward,
+		k("b"):       move_word_backward,
+		k("C-c"):     cancel_keys_entered,
+		k("C-g"):     cancel_keys_entered,
+		k("ESC ESC"): cancel_keys_entered,
+		k("i"):       enter_insert_mode,
+		k("a"):       enter_insert_mode_append,
+		k("A"):       enter_insert_mode_eol,
+		k("o"):       enter_insert_mode_nl,
+		k("O"):       enter_insert_mode_nl_up,
+	}},
+	"insert": &mode{name: "insert", bindings: map[*key_list]command_fn{
+		k("ESC"):  enter_normal_mode,
+		k("RET"):  insert_enter,
+		k("$any"): insert,
 	}},
 }
 
@@ -142,6 +156,50 @@ func move_word_backward(vt *view_tree, b *buffer, kl *key_list) {
 }
 func move_word_forward(vt *view_tree, b *buffer, kl *key_list) {
 	b.move_word_forward()
+}
+
+func cancel_keys_entered(vt *view_tree, b *buffer, kl *key_list) {
+	keys_entered = k("")
+}
+
+func enter_normal_mode(vt *view_tree, b *buffer, kl *key_list) {
+	move_left(vt, b, kl)
+	editor_mode = "normal"
+}
+func enter_insert_mode(vt *view_tree, b *buffer, kl *key_list) {
+	editor_mode = "insert"
+}
+func enter_insert_mode_append(vt *view_tree, b *buffer, kl *key_list) {
+	move_right(vt, b, kl)
+	editor_mode = "insert"
+}
+func enter_insert_mode_eol(vt *view_tree, b *buffer, kl *key_list) {
+	move_line_end(vt, b, kl)
+	editor_mode = "insert"
+}
+func enter_insert_mode_nl(vt *view_tree, b *buffer, kl *key_list) {
+	move_line_end(vt, b, kl)
+	b.insert([]rune("\n"))
+	b.move(0, 1) // ensure a valid position
+	editor_mode = "insert"
+}
+func enter_insert_mode_nl_up(vt *view_tree, b *buffer, kl *key_list) {
+	move_line_beg(vt, b, kl)
+	b.insert([]rune("\n"))
+	b.move(0, 0) // ensure a valid position
+	editor_mode = "insert"
+}
+
+func insert_enter(vt *view_tree, b *buffer, kl *key_list) {
+	b.insert([]rune("\n"))
+	move_line_beg(vt, b, kl)
+}
+func insert(vt *view_tree, b *buffer, kl *key_list) {
+	k := kl.keys[len(kl.keys)-1]
+	if k.key == tcell.KeyRune && k.mod == 0 {
+		b.insert([]rune{k.chr})
+		move_right(vt, b, kl)
+	}
 }
 
 // }}}
@@ -277,6 +335,25 @@ func (b *buffer) move_word_backward() bool {
 	return true
 }
 
+func (b *buffer) insert(data []rune) {
+	c, l := b.cursor.char, b.cursor.line
+	for _, ch := range data {
+		if ch == '\n' {
+			rest := append([]rune(nil), b.data[l][c:]...)
+			b.data[l] = b.data[l][:c]
+			b.data = append(b.data[:l+1],
+				append([][]rune{rest}, b.data[l+1:]...)...)
+		} else {
+			b.data[l] = append(b.data[l][:c],
+				append([]rune{ch}, b.data[l][c:]...)...)
+		}
+	}
+}
+
+func (b *buffer) remove(n int) {
+	// TODO
+}
+
 // }}}
 
 // {{{ action
@@ -284,7 +361,7 @@ type action_type int
 
 const (
 	action_type_insert action_type = iota
-	action_type_delete
+	action_type_remove
 )
 
 type action struct {
@@ -349,9 +426,9 @@ func (v *view) adjust_scroll(w, h int) {
 		return
 	}
 	// too low
-	// (h-1) as height includes status bar
-	if l > h-1+v.line_offset {
-		v.line_offset = max(l-h-1+2, 0)
+	// (h-2) as height includes status bar and moving to 0 based
+	if l > h-2+v.line_offset {
+		v.line_offset = max(l-h+2, 0)
 	}
 	// too high
 	if l < v.line_offset {
@@ -442,6 +519,8 @@ func render() {
 	} else {
 		write(s, 0, height-1, keys_entered.String())
 	}
+	last_key_text := last_key.String()
+	write(s, width-len(last_key_text)-1, height-1, last_key_text)
 
 	screen.Show()
 }
@@ -557,6 +636,13 @@ type key struct {
 	chr rune
 }
 
+const (
+	key_type_catchall tcell.Key = iota + 5000
+	key_type_alpha
+	key_type_num
+	key_type_alpha_num
+)
+
 func new_key_from_event(ev *tcell.EventKey) *key {
 	k, r, m := ev.Key(), ev.Rune(), ev.Modifiers()
 
@@ -581,6 +667,16 @@ func new_key_from_event(ev *tcell.EventKey) *key {
 }
 
 func new_key(rep string) *key {
+	if rep == "$any" {
+		return &key{key: key_type_catchall}
+	} else if rep == "$num" {
+		return &key{key: key_type_num}
+	} else if rep == "$alpha" {
+		return &key{key: key_type_alpha}
+	} else if rep == "$alphanum" {
+		return &key{key: key_type_alpha_num}
+	}
+
 	parts := strings.Split(rep, "-")
 
 	// Modifiers
@@ -658,6 +754,10 @@ func (k *key) String() string {
 }
 
 func (k1 *key) matches(k2 *key) bool {
+	if k1.key == key_type_catchall || k2.key == key_type_catchall {
+		return true
+	}
+	// TODO implement num & alpha match
 	return k1.mod == k2.mod && k1.key == k2.key && k1.chr == k2.chr
 }
 
