@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -59,6 +60,14 @@ top:
 				} else {
 					keys_entered.add_key(new_key_from_event(ev))
 					// TODO handle
+
+					mode := modes[editor_mode]
+					for kl, f := range mode.bindings {
+						if matched := keys_entered.has_suffix(kl); matched != nil {
+							keys_entered = k("")
+							f(current_view_tree, current_view_tree.leaf.buf, matched)
+						}
+					}
 				}
 			case *tcell.EventResize:
 				editor_width, editor_height = screen.Size()
@@ -70,7 +79,7 @@ top:
 }
 
 // {{{ mode
-type command_fn func(*buffer, *key_list)
+type command_fn func(*view_tree, *buffer, *key_list)
 
 type mode struct {
 	name     string
@@ -79,8 +88,60 @@ type mode struct {
 
 var modes = map[string]*mode{
 	"normal": &mode{name: "normal", bindings: map[*key_list]command_fn{
-		k(""): func(b *buffer, kl *key_list) {},
+		k("h"):   move_left,
+		k("j"):   move_down,
+		k("k"):   move_up,
+		k("l"):   move_right,
+		k("0"):   move_line_beg,
+		k("$"):   move_line_end,
+		k("g g"): move_top,
+		k("G"):   move_bottom,
+		k("C-u"): move_jump_up,
+		k("C-d"): move_jump_down,
+		k("z z"): move_center_line,
+		k("w"):   move_word_forward,
+		k("b"):   move_word_backward,
 	}},
+}
+
+func move_left(vt *view_tree, b *buffer, kl *key_list) {
+	b.move(-1, 0)
+}
+func move_right(vt *view_tree, b *buffer, kl *key_list) {
+	b.move(1, 0)
+}
+func move_up(vt *view_tree, b *buffer, kl *key_list) {
+	b.move(0, -1)
+}
+func move_down(vt *view_tree, b *buffer, kl *key_list) {
+	b.move(0, 1)
+}
+func move_line_beg(vt *view_tree, b *buffer, kl *key_list) {
+	b.move_to(0, b.cursor.line)
+}
+func move_line_end(vt *view_tree, b *buffer, kl *key_list) {
+	b.move_to(len(b.data[b.cursor.line]), b.cursor.line)
+}
+func move_top(vt *view_tree, b *buffer, kl *key_list) {
+	b.move_to(0, 0)
+}
+func move_bottom(vt *view_tree, b *buffer, kl *key_list) {
+	b.move_to(0, len(b.data)-1)
+}
+func move_jump_up(vt *view_tree, b *buffer, kl *key_list) {
+	b.move(0, -15)
+}
+func move_jump_down(vt *view_tree, b *buffer, kl *key_list) {
+	b.move(0, 15)
+}
+func move_center_line(vt *view_tree, b *buffer, kl *key_list) {
+	vt.leaf.center_pending = true
+}
+func move_word_backward(vt *view_tree, b *buffer, kl *key_list) {
+	b.move_word_backward()
+}
+func move_word_forward(vt *view_tree, b *buffer, kl *key_list) {
+	b.move_word_forward()
 }
 
 // }}}
@@ -122,6 +183,98 @@ func new_buffer(name string, path string) *buffer {
 		modified: false,
 		cursor:   new_location(0, 0),
 	}
+}
+
+func (b *buffer) char_under_cursor() rune {
+	line := b.data[b.cursor.line]
+	if b.cursor.char < len(line) {
+		return line[b.cursor.char]
+	} else {
+		return '\n'
+	}
+}
+
+func (b *buffer) first_line() bool {
+	return b.cursor.line == 0
+}
+
+func (b *buffer) last_line() bool {
+	return b.cursor.line == len(b.data)-1
+}
+
+func (b *buffer) move_to(c, l int) {
+	b.cursor.line = max(min(l, len(b.data)-1), 0)
+	b.cursor.char = max(min(c, len(b.data[b.cursor.line])), 0)
+}
+
+func (b *buffer) move(c, l int) {
+	b.move_to(b.cursor.char+c, b.cursor.line+l)
+}
+
+func (b *buffer) move_word_forward() bool {
+	for {
+		c := b.char_under_cursor()
+		if c == '\n' {
+			if b.last_line() {
+				return false
+			} else {
+				b.cursor.line++
+				b.cursor.char = 0
+				break
+			}
+		}
+
+		for is_word(c) && c != '\n' {
+			b.cursor.char++
+			c = b.char_under_cursor()
+		}
+
+		if c == '\n' {
+			continue
+		}
+		break
+	}
+
+	c := b.char_under_cursor()
+	for !is_word(c) && c != '\n' {
+		b.cursor.char++
+		c = b.char_under_cursor()
+	}
+
+	return true
+}
+
+func (b *buffer) move_word_backward() bool {
+	for {
+		c := b.char_under_cursor()
+		if b.cursor.char == 0 {
+			if b.first_line() {
+				return false
+			} else {
+				b.cursor.line--
+				b.cursor.char = len(b.data[b.cursor.line])
+				continue
+			}
+		}
+
+		for !is_word(c) && b.cursor.char != 0 {
+			b.cursor.char--
+			c = b.char_under_cursor()
+		}
+
+		if b.cursor.char == 0 {
+			continue
+		}
+		break
+	}
+
+	c := b.char_under_cursor()
+	for is_word(c) && b.cursor.char != 0 {
+		b.cursor.char--
+		c = b.char_under_cursor()
+	}
+
+	return true
 }
 
 // }}}
@@ -169,8 +322,9 @@ type view_highlight struct {
 }
 
 type view struct {
-	buf         *buffer
-	line_offset int
+	buf            *buffer
+	line_offset    int
+	center_pending bool
 
 	highlights []*view_highlight
 	marks      map[rune]*location
@@ -179,10 +333,29 @@ type view struct {
 func new_view(buf *buffer) *view {
 	return &view{
 
-		buf:         buf,
-		line_offset: 0,
-		highlights:  []*view_highlight{},
-		marks:       map[rune]*location{},
+		buf:            buf,
+		line_offset:    0,
+		center_pending: false,
+		highlights:     []*view_highlight{},
+		marks:          map[rune]*location{},
+	}
+}
+
+func (v *view) adjust_scroll(w, h int) {
+	l := v.buf.cursor.line
+	if v.center_pending {
+		v.line_offset = max(l-int(math.Floor(float64(h-1)/2)), 1)
+		v.center_pending = false
+		return
+	}
+	// too low
+	// (h-1) as height includes status bar
+	if l > h-1+v.line_offset {
+		v.line_offset = max(l-h-1+2, 0)
+	}
+	// too high
+	if l < v.line_offset {
+		v.line_offset = l
 	}
 }
 
@@ -242,6 +415,11 @@ func style(name string) tcell.Style {
 			Foreground(tcell.ColorYellow).
 			Background(tcell.ColorDefault)
 	}
+	if name == "cursor" {
+		return tcell.StyleDefault.
+			Foreground(tcell.ColorBlack).
+			Background(tcell.ColorWhite)
+	}
 	return tcell.StyleDefault.
 		Foreground(tcell.ColorWhite).
 		Background(tcell.ColorDefault)
@@ -253,6 +431,8 @@ func style(name string) tcell.Style {
 func render() {
 	width, height := editor_width, editor_height
 	s := style("default")
+
+	screen.Clear()
 
 	render_view_tree(root_view_tree, 0, 0, width, height-1)
 
@@ -276,11 +456,14 @@ func render_view_tree(vt *view_tree, x, y, w, h int) {
 
 func render_view(v *view, x, y, w, h int) {
 	s := style("default")
+	sc := style("cursor")
 	ss := style("special")
 	sln := style("linenumber")
 	ssb := style("statusbar")
 	ssbh := style("statusbar.highlight")
 	b := v.buf
+
+	v.adjust_scroll(w, h)
 
 	gutterw := len(strconv.Itoa(len(b.data))) + 1
 	sy := y
@@ -289,8 +472,10 @@ func render_view(v *view, x, y, w, h int) {
 		write(sln, x, sy, padl(strconv.Itoa(line+1), gutterw-1, ' '))
 
 		sx := x + gutterw
-		for _, char := range b.data[line] {
-			if strings.ContainsRune(special_chars, char) {
+		for c, char := range b.data[line] {
+			if v == current_view_tree.leaf && line == b.cursor.line && c == b.cursor.char {
+				sx += write(sc, sx, sy, string(char))
+			} else if strings.ContainsRune(special_chars, char) {
 				sx += write(ss, sx, sy, string(char))
 			} else {
 				sx += write(s, sx, sy, string(char))
@@ -299,8 +484,10 @@ func render_view(v *view, x, y, w, h int) {
 				break
 			}
 		}
-		if v == current_view_tree.leaf && line == b.cursor.line {
-			screen.ShowCursor(min(x+gutterw+b.cursor.char, w-gutterw-1), sy)
+		if v == current_view_tree.leaf &&
+			line == b.cursor.line &&
+			b.cursor.char == len(b.data[b.cursor.line]) {
+			write(sc, sx, sy, " ")
 		}
 
 		line++
@@ -515,14 +702,14 @@ func (kl1 *key_list) matches(kl2 *key_list) bool {
 	return true
 }
 
-func (kl1 *key_list) has_suffix(kl2 *key_list) bool {
+func (kl1 *key_list) has_suffix(kl2 *key_list) *key_list {
 	for i := len(kl1.keys) - 1; i >= 0; i-- {
 		tmp_kl := key_list{kl1.keys[i:]}
 		if tmp_kl.matches(kl2) {
-			return true
+			return &tmp_kl
 		}
 	}
-	return false
+	return nil
 }
 
 // }}}
@@ -640,6 +827,14 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func is_word(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsNumber(r) || strings.ContainsRune("_", r)
+}
+
+func is_space(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n'
 }
 
 /// }}}
