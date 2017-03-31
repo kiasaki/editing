@@ -13,4 +13,7 @@ deps:
 clean:
 	rm ry
 
-.PHONY: build run deps clean
+r:
+	go build -v -o ry r/r.go && ./ry
+
+.PHONY: build run deps clean r
