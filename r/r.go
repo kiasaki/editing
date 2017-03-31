@@ -16,10 +16,15 @@ import (
 
 // fatal(pp.Sprintln(value))
 
+const (
+	special_chars = "[]{}()/\\"
+)
+
 var (
 	keys_entered                     = new_key_list("")
 	term_events                      = make(chan tcell.Event, 20)
 	clipboard                        = []rune("")
+	editor_mode                      = "normal"
 	editor_message                   = ""
 	editor_message_type              = "info"
 	editor_width                     = 0
@@ -63,6 +68,22 @@ top:
 	}
 
 }
+
+// {{{ mode
+type command_fn func(*buffer, *key_list)
+
+type mode struct {
+	name     string
+	bindings map[*key_list]command_fn
+}
+
+var modes = map[string]*mode{
+	"normal": &mode{name: "normal", bindings: map[*key_list]command_fn{
+		k(""): func(b *buffer, kl *key_list) {},
+	}},
+}
+
+// }}}
 
 // {{{ buffer
 type location struct {
@@ -204,9 +225,19 @@ func style(name string) tcell.Style {
 	if name == "statusbar" {
 		return tcell.StyleDefault.
 			Foreground(tcell.ColorBlack).
-			Background(tcell.ColorWhite)
+			Background(tcell.ColorAqua)
+	}
+	if name == "statusbar.highlight" {
+		return tcell.StyleDefault.
+			Foreground(tcell.ColorBlack).
+			Background(tcell.ColorYellow)
 	}
 	if name == "linenumber" {
+		return tcell.StyleDefault.
+			Foreground(tcell.ColorYellow).
+			Background(tcell.ColorDefault)
+	}
+	if name == "special" {
 		return tcell.StyleDefault.
 			Foreground(tcell.ColorYellow).
 			Background(tcell.ColorDefault)
@@ -245,8 +276,10 @@ func render_view_tree(vt *view_tree, x, y, w, h int) {
 
 func render_view(v *view, x, y, w, h int) {
 	s := style("default")
+	ss := style("special")
 	sln := style("linenumber")
 	ssb := style("statusbar")
+	ssbh := style("statusbar.highlight")
 	b := v.buf
 
 	gutterw := len(strconv.Itoa(len(b.data))) + 1
@@ -257,7 +290,11 @@ func render_view(v *view, x, y, w, h int) {
 
 		sx := x + gutterw
 		for _, char := range b.data[line] {
-			sx += write(s, sx, sy, string(char))
+			if strings.ContainsRune(special_chars, char) {
+				sx += write(ss, sx, sy, string(char))
+			} else {
+				sx += write(s, sx, sy, string(char))
+			}
 			if sx >= x+w {
 				break
 			}
@@ -270,8 +307,11 @@ func render_view(v *view, x, y, w, h int) {
 		sy++
 	}
 
-	status_text := fmt.Sprintf(" %s %d:%d/%d", b.name, b.cursor.char+1, b.cursor.line+1, len(b.data))
-	write(ssb, x, y+h-1, padr(status_text, w, ' '))
+	mode_status := " " + editor_mode + " "
+	write(ssbh, x, y+h-1, mode_status)
+	cur_status := fmt.Sprintf("(%d,%d) %d ", b.cursor.char+1, b.cursor.line+1, len(b.data))
+	write(ssb, x+w-len(cur_status), y+h-1, cur_status)
+	write(ssb, x+len(mode_status), y+h-1, padr(" "+b.name, w-len(cur_status)-len(mode_status), ' '))
 }
 
 // }}}
@@ -448,6 +488,8 @@ func new_key_list(rep string) *key_list {
 	}
 	return kl
 }
+
+var k = new_key_list
 
 func (kl *key_list) String() string {
 	rep := []string{}
