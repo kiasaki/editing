@@ -20,10 +20,6 @@
 			"Rev": "8fa88b06e5974e97fbf9899a7f86a344bfd1f105"
 		},
 		{
-			"ImportPath": "github.com/kiasaki/go-rope",
-			"Rev": "d4b1498b37c3ff4b9a37bfd3d4a7ad800dfc6d1f"
-		},
-		{
 			"ImportPath": "github.com/lucasb-eyer/go-colorful",
 			"Rev": "9c2852a141bf4711e4276f8f119c90d0f20a556c"
 		},
@@ -31,6 +27,10 @@
 			"ImportPath": "github.com/mattn/go-runewidth",
 			"Comment": "v0.0.1-10-g737072b",
 			"Rev": "737072b4e32b7a5018b4a7125da8d12de90e8045"
+		},
+		{
+			"ImportPath": "github.com/zyedidia/clipboard",
+			"Rev": "adacf416cec40266b051e7bc096c52951f2725e9"
 		},
 		{
 			"ImportPath": "golang.org/x/text/encoding",

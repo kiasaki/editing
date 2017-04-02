@@ -1,8 +1,28 @@
 # Todo
 
-- Progressive redisplay
-- Make KeyPress.String() handle Ctrl-...
-- Consider having settings that are numbers be float64 for easier lang interop
+- Autocomplete
+- Visual mode (+ visual line)
+- Command mode (q,w,o,e,wq,!,wqall)
+- Buffer list/switch mode
+- File tree mode
+- Fuzzy file search mode
+- Recursive grep mode
+- Incremental Search
+- Buffer related commands/keybindings
+- Marks
+
+**Post 1.0**
+
+- Syntax highlithing
+- Settings
+- Scripting / user settings
+- Line wrapping
+- Windows
+- Color schemes
+- Shell mode
+- Ensure UTF-8 works
+- Help/Tutorial
+- Fringe for error reporting / plugins
 
 # The big list
 

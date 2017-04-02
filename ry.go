@@ -52,6 +52,9 @@ func main() {
 	init_term_events()
 	init_buffers()
 	init_views()
+
+	render()
+
 top:
 	for {
 		select {
@@ -76,8 +79,9 @@ top:
 			case *tcell.EventResize:
 				editor_width, editor_height = screen.Size()
 			}
+		default:
+			render()
 		}
-		render()
 	}
 
 }
