@@ -14,6 +14,7 @@ import (
 	"github.com/gdamore/tcell/encoding"
 	"github.com/go-errors/errors"
 	runewidth "github.com/mattn/go-runewidth"
+	zclip "github.com/zyedidia/clipboard"
 )
 
 // fatal(pp.Sprintln(value))
@@ -26,7 +27,8 @@ var (
 	keys_entered                     = new_key_list("")
 	last_key                         = new_key_list("")
 	term_events                      = make(chan tcell.Event, 20)
-	clipboard                        = []rune("")
+	default_clipboard                = '_'
+	clipboards                       = map[rune][]rune{'_': []rune{}}
 	editor_mode                      = "normal"
 	editor_message                   = ""
 	editor_message_type              = "info"
@@ -115,6 +117,8 @@ var modes = map[string]*mode{
 		k("d d"):     remove_line,
 		k("u"):       command_undo,
 		k("C-r"):     command_redo,
+		k("y y"):     command_copy_line,
+		k("p"):       command_paste,
 	}},
 	"insert": &mode{name: "insert", bindings: map[*key_list]command_fn{
 		k("ESC"):  enter_normal_mode,
@@ -222,11 +226,13 @@ func insert(vt *view_tree, b *buffer, kl *key_list) {
 }
 
 func remove_char(vt *view_tree, b *buffer, kl *key_list) {
-	b.remove(1)
+	removed := b.remove(1)
+	clipboard_set(default_clipboard, removed)
 }
 func remove_line(vt *view_tree, b *buffer, kl *key_list) {
 	move_line_beg(vt, b, kl)
-	b.remove(len(b.data[b.cursor.line]) + 1)
+	removed := b.remove(len(b.data[b.cursor.line]) + 1)
+	clipboard_set(default_clipboard, removed)
 }
 
 func command_undo(vt *view_tree, b *buffer, kl *key_list) {
@@ -234,6 +240,45 @@ func command_undo(vt *view_tree, b *buffer, kl *key_list) {
 }
 func command_redo(vt *view_tree, b *buffer, kl *key_list) {
 	b.redo()
+}
+func command_copy_line(vt *view_tree, b *buffer, kl *key_list) {
+	value := make([]rune, len(b.data[b.cursor.line])+1)
+	copy(value, b.data[b.cursor.line])
+	value[len(value)-1] = '\n'
+	clipboard_set(default_clipboard, value)
+}
+func command_paste(vt *view_tree, b *buffer, kl *key_list) {
+	value := clipboard_get(default_clipboard)
+	if len(value) == 0 {
+		message("Nothing to paste!")
+		return
+	}
+	b.insert(value)
+}
+
+// }}}
+
+// {{{ clipboard
+func clipboard_get(register rune) []rune {
+	if register == default_clipboard {
+		if value, err := zclip.ReadAll("clipboard"); err == nil {
+			return []rune(value)
+		}
+	} else if value, ok := clipboards[register]; ok {
+		return value
+	}
+	return []rune{}
+}
+
+func clipboard_set(register rune, value []rune) {
+	if register == default_clipboard {
+		if err := zclip.WriteAll(string(value), "clipboard"); err != nil {
+			message_error("Error clipboard_get: " + err.Error())
+		}
+
+	} else {
+		clipboards[register] = value
+	}
 }
 
 // }}}
@@ -413,6 +458,7 @@ func (b *buffer) redo() {
 }
 
 func try_merge_history(al []*action, a *action) []*action {
+	// TODO save end location on actions so that we can merge them here
 	return append(al, a)
 }
 
