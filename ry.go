@@ -52,6 +52,7 @@ func main() {
 	init_term_events()
 	init_buffers()
 	init_views()
+	init_modes()
 
 	render()
 
@@ -64,16 +65,18 @@ top:
 				if ev.Key() == tcell.KeyCtrlQ {
 					screen.Fini()
 					break top
+				} else if ev.Key() == tcell.KeyEscape {
+					kl := k("ESC")
+					enter_normal_mode(current_view_tree, current_view_tree.leaf.buf, kl)
+					last_key = kl
+					keys_entered = k("")
 				} else {
 					keys_entered.add_key(new_key_from_event(ev))
 
-					mode := modes[editor_mode]
-					for kl, f := range mode.bindings {
-						if matched := keys_entered.has_suffix(kl); matched != nil {
-							keys_entered = k("")
-							f(current_view_tree, current_view_tree.leaf.buf, matched)
-							last_key = matched
-						}
+					if matched := mode_handle(find_mode(editor_mode), keys_entered); matched != nil {
+						keys_entered = k("")
+						last_key = matched
+						continue
 					}
 				}
 			case *tcell.EventResize:
@@ -87,49 +90,97 @@ top:
 }
 
 // {{{ mode
+
 type command_fn func(*view_tree, *buffer, *key_list)
+
+type mode_binding struct {
+	k *key_list
+	f command_fn
+}
 
 type mode struct {
 	name     string
-	bindings map[*key_list]command_fn
+	bindings []*mode_binding
 }
 
-var modes = map[string]*mode{
-	"normal": &mode{name: "normal", bindings: map[*key_list]command_fn{
-		k("h"):       move_left,
-		k("j"):       move_down,
-		k("k"):       move_up,
-		k("l"):       move_right,
-		k("0"):       move_line_beg,
-		k("$"):       move_line_end,
-		k("g g"):     move_top,
-		k("G"):       move_bottom,
-		k("C-u"):     move_jump_up,
-		k("C-d"):     move_jump_down,
-		k("z z"):     move_center_line,
-		k("w"):       move_word_forward,
-		k("b"):       move_word_backward,
-		k("C-c"):     cancel_keys_entered,
-		k("C-g"):     cancel_keys_entered,
-		k("ESC ESC"): cancel_keys_entered,
-		k("i"):       enter_insert_mode,
-		k("a"):       enter_insert_mode_append,
-		k("A"):       enter_insert_mode_eol,
-		k("o"):       enter_insert_mode_nl,
-		k("O"):       enter_insert_mode_nl_up,
-		k("x"):       remove_char,
-		k("d d"):     remove_line,
-		k("u"):       command_undo,
-		k("C-r"):     command_redo,
-		k("y y"):     command_copy_line,
-		k("p"):       command_paste,
-	}},
-	"insert": &mode{name: "insert", bindings: map[*key_list]command_fn{
-		k("ESC"):  enter_normal_mode,
-		k("RET"):  insert_enter,
-		k("BAK"):  insert_backspace,
-		k("$any"): insert,
-	}},
+var modes = map[string]*mode{}
+
+func mode_handle(m *mode, kl *key_list) *key_list {
+	for _, binding := range m.bindings {
+		if matched := kl.has_suffix(binding.k); matched != nil {
+			binding.f(current_view_tree, current_view_tree.leaf.buf, matched)
+			return matched
+		}
+	}
+	return nil
+}
+
+func find_mode(name string) *mode {
+	if m, ok := modes[name]; ok {
+		return m
+	} else {
+		return nil
+	}
+}
+
+// Adds a new empty mode to the mode list, if not already present
+func add_mode(name string) {
+	if _, ok := modes[name]; !ok {
+		modes[name] = &mode{name: name, bindings: []*mode_binding{}}
+	}
+}
+
+func bind(mode_name string, k *key_list, f command_fn) {
+	mode := find_mode(mode_name)
+	if mode == nil {
+		fatal("bind: no mode named '" + mode_name + "'")
+	}
+
+	// If this key is bound, update bound function
+	for _, binding := range mode.bindings {
+		if k.matches(binding.k) {
+			binding.f = f
+		}
+	}
+	// Else, it's a new binding, add it
+	mode.bindings = append(mode.bindings, &mode_binding{k: k, f: f})
+}
+
+func init_modes() {
+	add_mode("normal")
+	bind("normal", k("h"), move_left)
+	bind("normal", k("j"), move_down)
+	bind("normal", k("k"), move_up)
+	bind("normal", k("l"), move_right)
+	bind("normal", k("0"), move_line_beg)
+	bind("normal", k("$"), move_line_end)
+	bind("normal", k("g g"), move_top)
+	bind("normal", k("G"), move_bottom)
+	bind("normal", k("C-u"), move_jump_up)
+	bind("normal", k("C-d"), move_jump_down)
+	bind("normal", k("z z"), move_center_line)
+	bind("normal", k("w"), move_word_forward)
+	bind("normal", k("b"), move_word_backward)
+	bind("normal", k("C-c"), cancel_keys_entered)
+	bind("normal", k("C-g"), cancel_keys_entered)
+	bind("normal", k("ESC ESC"), cancel_keys_entered)
+	bind("normal", k("i"), enter_insert_mode)
+	bind("normal", k("a"), enter_insert_mode_append)
+	bind("normal", k("A"), enter_insert_mode_eol)
+	bind("normal", k("o"), enter_insert_mode_nl)
+	bind("normal", k("O"), enter_insert_mode_nl_up)
+	bind("normal", k("x"), remove_char)
+	bind("normal", k("d d"), remove_line)
+	bind("normal", k("u"), command_undo)
+	bind("normal", k("C-r"), command_redo)
+	bind("normal", k("y y"), command_copy_line)
+	bind("normal", k("p"), command_paste)
+
+	add_mode("insert")
+	bind("insert", k("ESC"), enter_normal_mode)
+	bind("insert", k("RET"), insert_enter)
+	bind("insert", k("BAK"), insert_backspace)
+	bind("insert", k("$any"), insert)
 }
 
 func move_left(vt *view_tree, b *buffer, kl *key_list) {
@@ -226,6 +277,8 @@ func insert(vt *view_tree, b *buffer, kl *key_list) {
 	if k.key == tcell.KeyRune && k.mod == 0 {
 		b.insert([]rune{k.chr})
 		move_right(vt, b, kl)
+	} else {
+		message("Can't insert '" + kl.String() + "'")
 	}
 }
 
