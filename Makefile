@@ -1,5 +1,5 @@
 build:
-	go build -v -o ry .
+	go build -i -v -o ry .
 
 run: build
 	./ry

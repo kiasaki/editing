@@ -138,7 +138,7 @@ func bind(mode_name string, k *key_list, f command_fn) {
 
 	// If this key is bound, update bound function
 	for _, binding := range mode.bindings {
-		if k.matches(binding.k) {
+		if k.String() == binding.k.String() {
 			binding.f = f
 		}
 	}
@@ -150,6 +150,8 @@ func init_modes() {
 	add_mode("normal")
 	bind("normal", k("m $alpha"), command_mark)
 	bind("normal", k("' $alpha"), command_move_to_mark)
+	bind("normal", k(":"), prompt_command)
+	bind("normal", k("p"), command_paste)
 	bind("normal", k("h"), move_left)
 	bind("normal", k("j"), move_down)
 	bind("normal", k("k"), move_up)
@@ -183,6 +185,14 @@ func init_modes() {
 	bind("insert", k("RET"), insert_enter)
 	bind("insert", k("BAK"), insert_backspace)
 	bind("insert", k("$any"), insert)
+
+	add_mode("prompt")
+	bind("prompt", k("C-c"), prompt_cancel)
+	bind("prompt", k("C-g"), prompt_cancel)
+	bind("prompt", k("ESC"), prompt_cancel)
+	bind("prompt", k("RET"), prompt_finish)
+	bind("prompt", k("BAK"), prompt_backspace)
+	bind("prompt", k("$any"), prompt_insert)
 }
 
 func move_left(vt *view_tree, b *buffer, kl *key_list) {
@@ -229,32 +239,37 @@ func cancel_keys_entered(vt *view_tree, b *buffer, kl *key_list) {
 	keys_entered = k("")
 }
 
+// Enter in a new mode
+func enter_mode(mode string) {
+	editor_mode = mode
+}
+
 func enter_normal_mode(vt *view_tree, b *buffer, kl *key_list) {
 	move_left(vt, b, kl)
-	editor_mode = "normal"
+	enter_mode("normal")
 }
 func enter_insert_mode(vt *view_tree, b *buffer, kl *key_list) {
-	editor_mode = "insert"
+	enter_mode("insert")
 }
 func enter_insert_mode_append(vt *view_tree, b *buffer, kl *key_list) {
 	move_right(vt, b, kl)
-	editor_mode = "insert"
+	enter_mode("insert")
 }
 func enter_insert_mode_eol(vt *view_tree, b *buffer, kl *key_list) {
 	move_line_end(vt, b, kl)
-	editor_mode = "insert"
+	enter_mode("insert")
 }
 func enter_insert_mode_nl(vt *view_tree, b *buffer, kl *key_list) {
 	move_line_end(vt, b, kl)
 	b.insert([]rune("\n"))
 	b.move(0, 1) // ensure a valid position
-	editor_mode = "insert"
+	enter_mode("insert")
 }
 func enter_insert_mode_nl_up(vt *view_tree, b *buffer, kl *key_list) {
 	move_line_beg(vt, b, kl)
 	b.insert([]rune("\n"))
 	b.move(0, 0) // ensure a valid position
-	editor_mode = "insert"
+	enter_mode("insert")
 }
 
 func insert_enter(vt *view_tree, b *buffer, kl *key_list) {
@@ -322,6 +337,61 @@ func command_mark(vt *view_tree, b *buffer, kl *key_list) {
 func command_move_to_mark(vt *view_tree, b *buffer, kl *key_list) {
 	mark_letter := kl.keys[len(kl.keys)-1].chr
 	mark_jump(mark_letter)
+}
+
+// }}}
+
+// {{{ prompt
+var (
+	editor_is_prompt_active                           = false
+	editor_prompt                                     = ""
+	editor_prompt_value                               = ""
+	editor_prompt_callback_fn   func([]string)        = nil
+	editor_prompt_completion_fn func(string) []string = nil
+)
+
+func prompt(prompt string, comp_fn func(string) []string, cb_fn func([]string)) {
+	editor_prompt = prompt
+	editor_prompt_value = ""
+	editor_prompt_callback_fn = cb_fn
+	editor_prompt_completion_fn = comp_fn
+	enter_mode("prompt")
+}
+
+func prompt_update_completion() {
+	// TODO
+}
+
+func prompt_cancel(vt *view_tree, b *buffer, kl *key_list) {
+	enter_mode("normal")
+}
+
+func prompt_finish(vt *view_tree, b *buffer, kl *key_list) {
+	enter_mode("normal")
+	// TODO better args parsing
+	editor_prompt_callback_fn(strings.Split(editor_prompt_value, " "))
+}
+
+func prompt_backspace(vt *view_tree, b *buffer, kl *key_list) {
+	if len(editor_prompt_value) > 0 {
+		editor_prompt_value = editor_prompt_value[:len(editor_prompt_value)-1]
+		prompt_update_completion()
+	}
+}
+
+func prompt_insert(vt *view_tree, b *buffer, kl *key_list) {
+	k := kl.keys[len(kl.keys)-1]
+	if k.key == tcell.KeyRune && k.mod == 0 {
+		editor_prompt_value += string(k.chr)
+		prompt_update_completion()
+	}
+}
+
+func prompt_command(vt *view_tree, b *buffer, kl *key_list) {
+	prompt(":", func(prefix string) []string {
+		return []string{}
+	}, func(argv []string) {
+	})
 }
 
 // }}}
@@ -781,13 +851,26 @@ func style(name string) tcell.Style {
 // {{{ render
 func render() {
 	width, height := editor_width, editor_height
-	s := style("default")
 
 	screen.Clear()
 
 	render_view_tree(root_view_tree, 0, 0, width, height-1)
 
-	// Message bar
+	render_message_bar(width, height)
+
+	screen.Show()
+}
+
+func render_message_bar(width, height int) {
+	s := style("default")
+
+	if editor_mode == "prompt" {
+		p := editor_prompt + editor_prompt_value
+		write(s, 0, height-1, p)
+		write(s.Reverse(true), len(p), height-1, " ")
+		return
+	}
+
 	if editor_message != "" {
 		write(s, 0, height-1, editor_message)
 	} else {
@@ -795,8 +878,6 @@ func render() {
 	}
 	last_key_text := last_key.String()
 	write(s, width-len(last_key_text)-1, height-1, last_key_text)
-
-	screen.Show()
 }
 
 func render_view_tree(vt *view_tree, x, y, w, h int) {
