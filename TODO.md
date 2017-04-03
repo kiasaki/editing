@@ -1,21 +1,21 @@
 # Todo
 
 - Autocomplete
+- ~Marks~
 - Visual mode (+ visual line)
+- Incremental Search
 - Command mode (q,w,o,e,wq,!,wqall)
 - Buffer list/switch mode
 - File tree mode
-- Fuzzy file search mode
-- Recursive grep mode
-- Incremental Search
 - Buffer related commands/keybindings
-- Marks
 
 **Post 1.0**
 
 - Syntax highlithing
 - Settings
 - Scripting / user settings
+- Fuzzy file search mode
+- Recursive grep mode
 - Line wrapping
 - Windows
 - Color schemes

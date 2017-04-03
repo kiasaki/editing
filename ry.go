@@ -148,6 +148,8 @@ func bind(mode_name string, k *key_list, f command_fn) {
 
 func init_modes() {
 	add_mode("normal")
+	bind("normal", k("m $alpha"), command_mark)
+	bind("normal", k("' $alpha"), command_move_to_mark)
 	bind("normal", k("h"), move_left)
 	bind("normal", k("j"), move_down)
 	bind("normal", k("k"), move_up)
@@ -313,6 +315,15 @@ func command_paste(vt *view_tree, b *buffer, kl *key_list) {
 	b.insert(value)
 }
 
+func command_mark(vt *view_tree, b *buffer, kl *key_list) {
+	mark_letter := kl.keys[len(kl.keys)-1].chr
+	mark_create(mark_letter, b)
+}
+func command_move_to_mark(vt *view_tree, b *buffer, kl *key_list) {
+	mark_letter := kl.keys[len(kl.keys)-1].chr
+	mark_jump(mark_letter)
+}
+
 // }}}
 
 // {{{ clipboard
@@ -335,6 +346,32 @@ func clipboard_set(register rune, value []rune) {
 
 	} else {
 		clipboards[register] = value
+	}
+}
+
+// }}}
+
+// {{{ mark
+type mark struct {
+	loc         *location
+	buffer_name string
+}
+
+var marks = map[rune]*mark{}
+
+func mark_create(mark_letter rune, b *buffer) *mark {
+	m := &mark{loc: b.cursor.clone(), buffer_name: b.name}
+	marks[mark_letter] = m
+	return m
+}
+
+func mark_jump(mark_letter rune) {
+	if m, ok := marks[mark_letter]; ok {
+		if b := show_buffer(m.buffer_name); b != nil {
+			b.move_to(m.loc.char, m.loc.line)
+		} else {
+			message_error("Can't find buffer named '" + m.buffer_name + "'")
+		}
 	}
 }
 
@@ -610,6 +647,21 @@ func open_buffer(name, path string) {
 	buffers = append(buffers, buf)
 }
 
+// TODO check if is shown first, then if not create split not replace
+func show_buffer(buffer_name string) *buffer {
+	for _, b := range buffers {
+		if b.name == buffer_name {
+			if current_view_tree.leaf.buf == b {
+				return b // already shown
+			}
+			current_view_tree = new_view_tree_leaf(nil, new_view(b))
+			root_view_tree = current_view_tree
+			return b
+		}
+	}
+	return nil
+}
+
 // }}}
 
 // {{{ view
@@ -625,17 +677,14 @@ type view struct {
 	center_pending bool
 
 	highlights []*view_highlight
-	marks      map[rune]*location
 }
 
 func new_view(buf *buffer) *view {
 	return &view{
-
 		buf:            buf,
 		line_offset:    0,
 		center_pending: false,
 		highlights:     []*view_highlight{},
-		marks:          map[rune]*location{},
 	}
 }
 
@@ -668,6 +717,10 @@ type view_tree struct {
 	bottom *view_tree
 	leaf   *view
 	size   int
+}
+
+func new_view_tree_leaf(parent *view_tree, v *view) *view_tree {
+	return &view_tree{parent: parent, leaf: v, size: 50}
 }
 
 // }}}
@@ -974,11 +1027,21 @@ func (k *key) String() string {
 	return strings.Join(append(mods, name), "-")
 }
 
+func (k *key) is_rune() bool {
+	return k.mod == 0 && k.key == tcell.KeyRune
+}
+
+// TODO implement num match
 func (k1 *key) matches(k2 *key) bool {
 	if k1.key == key_type_catchall || k2.key == key_type_catchall {
 		return true
 	}
-	// TODO implement num & alpha match
+	if k1.key == key_type_alpha && k2.is_rune() && is_alpha(k2.chr) {
+		return true
+	}
+	if k2.key == key_type_alpha && k1.is_rune() && is_alpha(k1.chr) {
+		return true
+	}
 	return k1.mod == k2.mod && k1.key == k2.key && k1.chr == k2.chr
 }
 
@@ -1147,8 +1210,12 @@ func is_word(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsNumber(r) || strings.ContainsRune("_", r)
 }
 
-func is_space(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n'
+func is_space(r rune) bool {
+	return r == ' ' || r == '\t' || r == '\n'
+}
+
+func is_alpha(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
 }
 
 /// }}}
