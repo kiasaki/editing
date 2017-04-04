@@ -53,6 +53,7 @@ func main() {
 	init_buffers()
 	init_views()
 	init_modes()
+	init_commands()
 
 	render()
 
@@ -730,6 +731,46 @@ func show_buffer(buffer_name string) *buffer {
 		}
 	}
 	return nil
+}
+
+func close_current_buffer(force bool) {
+	b := current_view_tree.leaf.buf
+	if b.modified && !force {
+		message_error("Save buffer before closing it.")
+		return
+	}
+	for i, b := range buffers {
+
+	}
+}
+
+var commands = map[string]func([]string){}
+var command_aliases = map[string]string{}
+
+func add_command(name string, fn func([]string)) {
+	commands[name] = fn
+}
+func add_alias(alias, name string) {
+	command_aliases[alias] = name
+}
+
+func init_commands() {
+	add_command("quit", func(args []string) {
+		close_current_buffer(false)
+	})
+	add_alias("q", "quit")
+	add_command("quit!", func(args []string) {
+		close_current_buffer(true)
+	})
+	add_alias("q!", "quit!")
+	add_command("write", func(args []string) {
+		b := current_view_tree.leaf.buf
+		if len(args) > 1 {
+			b.set_path(args[1])
+		}
+		b.save()
+	})
+	add_alias("w", "write")
 }
 
 // }}}
