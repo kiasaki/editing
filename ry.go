@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -243,6 +244,8 @@ func cancel_keys_entered(vt *view_tree, b *buffer, kl *key_list) {
 // Enter in a new mode
 func enter_mode(mode string) {
 	editor_mode = mode
+	// TODO maybe not the best place to clear this
+	message("")
 }
 
 func enter_normal_mode(vt *view_tree, b *buffer, kl *key_list) {
@@ -391,8 +394,7 @@ func prompt_insert(vt *view_tree, b *buffer, kl *key_list) {
 func prompt_command(vt *view_tree, b *buffer, kl *key_list) {
 	prompt(":", func(prefix string) []string {
 		return []string{}
-	}, func(argv []string) {
-	})
+	}, run_command)
 }
 
 // }}}
@@ -482,15 +484,24 @@ type buffer struct {
 }
 
 func new_buffer(name string, path string) *buffer {
-	return &buffer{
+	b := &buffer{
 		data:          [][]rune{{}},
 		history:       []*action{},
 		history_index: -1,
-		name:          name,
-		path:          path,
 		modified:      false,
 		cursor:        new_location(0, 0),
 	}
+
+	if path == "" {
+		// TODO ensure uniqueness
+		b.name = name
+	} else {
+		b.set_path(path)
+		// TODO ensure uniqueness
+		b.name = name
+	}
+
+	return b
 }
 
 func (b *buffer) char_at(l, c int) rune {
@@ -622,6 +633,55 @@ func (b *buffer) redo() {
 	}
 }
 
+func (b *buffer) set_path(path string) {
+	var err error
+	b.path, err = filepath.Abs(path)
+	if err != nil {
+		b.path = filepath.Clean(path)
+	}
+	b.name = ""
+	name := filepath.Base(b.path)
+
+	i := 1
+check_name:
+	for _, b2 := range buffers {
+		if b2.name == name {
+			b.name = name + " " + strconv.Itoa(i)
+			i++
+			goto check_name
+		}
+	}
+	if b.name == "" {
+		b.name = name
+	}
+}
+
+func (b *buffer) contents() string {
+	ret := ""
+	for _, line := range b.data {
+		ret += string(line) + "\n"
+	}
+	return ret
+}
+
+func (b *buffer) nice_path() string {
+	return strings.Replace(b.path, os.Getenv("HOME"), "~", -1)
+}
+
+func (b *buffer) save() {
+	if b.path == "" {
+		message_error("Can't save a buffer without a path.")
+		return
+	}
+	err := ioutil.WriteFile(b.path, []byte(b.contents()), 0666)
+	if err != nil {
+		message_error("Error saving buffer: " + err.Error())
+	} else {
+		b.modified = false
+		message_error("Buffer written to '" + b.nice_path() + "'")
+	}
+}
+
 func try_merge_history(al []*action, a *action) []*action {
 	// TODO save end location on actions so that we can merge them here
 	return append(al, a)
@@ -648,10 +708,12 @@ func new_action(typ action_type, loc *location, data []rune) *action {
 }
 
 func (a *action) apply(b *buffer) {
+	b.modified = true
 	a.do(b, a.typ)
 }
 
 func (a *action) revert(b *buffer) {
+	b.modified = true
 	a.do(b, -a.typ)
 }
 
@@ -702,13 +764,13 @@ func (a *action) remove(b *buffer) {
 // }}}
 
 // {{{ commands
-func open_buffer(name, path string) {
-	buf := new_buffer(name, path)
-	if path != "" {
-		contents, err := ioutil.ReadFile(path)
+func open_buffer_from_file(path string) *buffer {
+	buf := new_buffer(filepath.Base(path), path)
+	if buf.path != "" {
+		contents, err := ioutil.ReadFile(buf.path)
 		if err != nil {
-			message_error("Error reading file '" + path + "'")
-			return
+			message_error("Error reading file '" + buf.nice_path() + "'")
+			return nil
 		}
 		buf.data = [][]rune{}
 		for _, line := range strings.Split(string(contents), "\n") {
@@ -716,6 +778,13 @@ func open_buffer(name, path string) {
 		}
 	}
 	buffers = append(buffers, buf)
+	return buf
+}
+
+func open_buffer_named(name string) *buffer {
+	buf := new_buffer(name, "")
+	buffers = append(buffers, buf)
+	return buf
 }
 
 // TODO check if is shown first, then if not create split not replace
@@ -739,13 +808,50 @@ func close_current_buffer(force bool) {
 		message_error("Save buffer before closing it.")
 		return
 	}
-	for i, b := range buffers {
-
+	for i, b2 := range buffers {
+		if b == b2 {
+			buffers = append(buffers[:i], buffers[i+1:]...)
+			break
+		}
 	}
+	if len(buffers) == 0 {
+		// TODO Use method here (don't handcode screen.Fini())
+		screen.Fini()
+		os.Exit(0)
+	} else {
+		// TODO call method to open left over buffer (don't set root too)
+		current_view_tree = new_view_tree_leaf(nil, new_view(buffers[0]))
+		root_view_tree = current_view_tree
+	}
+}
+
+func find_buffer(name string) *buffer {
+	for _, b := range buffers {
+		if b.name == name {
+			return b
+		}
+	}
+	return nil
 }
 
 var commands = map[string]func([]string){}
 var command_aliases = map[string]string{}
+
+func run_command(args []string) {
+	if len(args) == 0 {
+		message_error("No command given!")
+		return
+	}
+	command_name := args[0]
+	if full_command_name, ok := command_aliases[command_name]; ok {
+		command_name = full_command_name
+	}
+	if c, ok := commands[command_name]; ok {
+		c(args)
+	} else {
+		message_error("No command named '" + command_name + "'")
+	}
+}
 
 func add_command(name string, fn func([]string)) {
 	commands[name] = fn
@@ -771,6 +877,28 @@ func init_commands() {
 		b.save()
 	})
 	add_alias("w", "write")
+	add_command("edit", func(args []string) {
+		if len(args) < 2 {
+			message_error("Can't open buffer without a name or file path.")
+		} else {
+			path, err := filepath.Abs(args[1])
+			if err != nil {
+				path = args[1]
+			}
+			var b *buffer
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				b = open_buffer_named(args[1])
+			} else {
+				b = open_buffer_from_file(path)
+			}
+			if b != nil {
+				show_buffer(b.name)
+			}
+		}
+
+	})
+	add_alias("e", "edit")
+	add_alias("o", "edit")
 }
 
 // }}}
@@ -912,10 +1040,14 @@ func render_message_bar(width, height int) {
 		return
 	}
 
+	smb := s
+	if editor_message_type == "error" {
+		smb = style("message.error")
+	}
 	if editor_message != "" {
-		write(s, 0, height-1, editor_message)
+		write(smb, 0, height-1, editor_message)
 	} else {
-		write(s, 0, height-1, keys_entered.String())
+		write(smb, 0, height-1, keys_entered.String())
 	}
 	last_key_text := last_key.String()
 	write(s, width-len(last_key_text)-1, height-1, last_key_text)
@@ -971,9 +1103,13 @@ func render_view(v *view, x, y, w, h int) {
 
 	mode_status := " " + editor_mode + " "
 	write(ssbh, x, y+h-1, mode_status)
-	cur_status := fmt.Sprintf("(%d,%d) %d ", b.cursor.char+1, b.cursor.line+1, len(b.data))
-	write(ssb, x+w-len(cur_status), y+h-1, cur_status)
-	write(ssb, x+len(mode_status), y+h-1, padr(" "+b.name, w-len(cur_status)-len(mode_status), ' '))
+	status_right := fmt.Sprintf("(%d,%d) %d ", b.cursor.char+1, b.cursor.line+1, len(b.data))
+	status_left := " " + b.name
+	if b.modified {
+		status_left += " [+]"
+	}
+	write(ssb, x+w-len(status_right), y+h-1, status_right)
+	write(ssb, x+len(mode_status), y+h-1, padr(status_left, w-len(status_right)-len(mode_status), ' '))
 }
 
 // }}}
@@ -1010,10 +1146,10 @@ func init_term_events() {
 
 func init_buffers() {
 	for _, arg := range os.Args[1:] {
-		open_buffer(arg, arg)
+		open_buffer_from_file(arg)
 	}
 	if len(buffers) == 0 {
-		open_buffer("*scratch*", "")
+		open_buffer_named("*scratch*")
 	}
 }
 
