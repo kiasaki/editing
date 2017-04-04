@@ -75,10 +75,18 @@ top:
 				} else {
 					keys_entered.add_key(new_key_from_event(ev))
 
+					buf := current_view_tree.leaf.buf
+					for _, mode_name := range buf.modes {
+						if matched := mode_handle(find_mode(mode_name), keys_entered); matched != nil {
+							keys_entered = k("")
+							last_key = matched
+							continue top
+						}
+					}
 					if matched := mode_handle(find_mode(editor_mode), keys_entered); matched != nil {
 						keys_entered = k("")
 						last_key = matched
-						continue
+						continue top
 					}
 				}
 			case *tcell.EventResize:
@@ -195,6 +203,21 @@ func init_modes() {
 	bind("prompt", k("RET"), prompt_finish)
 	bind("prompt", k("BAK"), prompt_backspace)
 	bind("prompt", k("$any"), prompt_insert)
+
+	add_mode("buffers")
+	bind("buffers", k("q"), func(vt *view_tree, b *buffer, kl *key_list) {
+		close_current_buffer(true)
+	})
+	bind("buffers", k("RET"), func(vt *view_tree, b *buffer, kl *key_list) {
+		close_current_buffer(true)
+		// TODO support buffer n > 9
+		show_buffer(string(b.data[b.cursor.line][2:]))
+	})
+	bind("buffers", k("$num"), func(vt *view_tree, b *buffer, kl *key_list) {
+		close_current_buffer(true)
+		// TODO support buffer n > 9
+		show_buffer(string(b.data[kl.keys[0].chr-'0'-1][2:]))
+	})
 }
 
 func move_left(vt *view_tree, b *buffer, kl *key_list) {
@@ -295,7 +318,10 @@ func insert_backspace(vt *view_tree, b *buffer, kl *key_list) {
 }
 func insert(vt *view_tree, b *buffer, kl *key_list) {
 	k := kl.keys[len(kl.keys)-1]
-	if k.key == tcell.KeyRune && k.mod == 0 {
+	if k.key == tcell.KeyTab {
+		b.insert([]rune{'\t'})
+		move_right(vt, b, kl)
+	} else if k.key == tcell.KeyRune && k.mod == 0 {
 		b.insert([]rune{k.chr})
 		move_right(vt, b, kl)
 	} else {
@@ -416,7 +442,6 @@ func clipboard_set(register rune, value []rune) {
 		if err := zclip.WriteAll(string(value), "clipboard"); err != nil {
 			message_error("Error clipboard_get: " + err.Error())
 		}
-
 	} else {
 		clipboards[register] = value
 	}
@@ -481,6 +506,7 @@ type buffer struct {
 	path          string
 	modified      bool
 	cursor        *location
+	modes         []string
 }
 
 func new_buffer(name string, path string) *buffer {
@@ -490,6 +516,7 @@ func new_buffer(name string, path string) *buffer {
 		history_index: -1,
 		modified:      false,
 		cursor:        new_location(0, 0),
+		modes:         []string{},
 	}
 
 	if path == "" {
@@ -656,6 +683,15 @@ check_name:
 	}
 }
 
+func (b *buffer) add_mode(name string) {
+	for _, mode := range b.modes {
+		if mode == name {
+			return
+		}
+	}
+	b.modes = append(b.modes, name)
+}
+
 func (b *buffer) contents() string {
 	ret := ""
 	for _, line := range b.data {
@@ -678,7 +714,7 @@ func (b *buffer) save() {
 		message_error("Error saving buffer: " + err.Error())
 	} else {
 		b.modified = false
-		message_error("Buffer written to '" + b.nice_path() + "'")
+		message("Buffer written to '" + b.nice_path() + "'")
 	}
 }
 
@@ -886,10 +922,15 @@ func init_commands() {
 				path = args[1]
 			}
 			var b *buffer
-			if _, err := os.Stat(path); os.IsNotExist(err) {
+			if file_info, err := os.Stat(path); os.IsNotExist(err) || err != nil {
 				b = open_buffer_named(args[1])
 			} else {
-				b = open_buffer_from_file(path)
+				if file_info.IsDir() {
+					b = open_buffer_named(filepath.Base(path))
+					b.path = path
+				} else {
+					b = open_buffer_from_file(path)
+				}
 			}
 			if b != nil {
 				show_buffer(b.name)
@@ -899,6 +940,27 @@ func init_commands() {
 	})
 	add_alias("e", "edit")
 	add_alias("o", "edit")
+	add_command("write", func(args []string) {
+		run_command([]string{"write"})
+		run_command([]string{"quit"})
+	})
+	add_alias("wq", "writequit")
+	add_command("buffers", func(args []string) {
+		var b *buffer
+		if b = find_buffer("*buffers*"); b == nil {
+			b = open_buffer_named("*buffers*")
+			b.add_mode("buffers")
+		}
+		b.data = [][]rune{}
+		for i, buf := range buffers {
+			if buf.name != "*buffers*" {
+				b.data = append(b.data, []rune(strconv.Itoa(i+1)+" "+buf.name))
+			}
+		}
+		b.data = append(b.data, []rune{})
+		show_buffer(b.name)
+	})
+	add_alias("b", "buffers")
 }
 
 // }}}
@@ -1101,14 +1163,22 @@ func render_view(v *view, x, y, w, h int) {
 		sy++
 	}
 
-	mode_status := " " + editor_mode + " "
+	// Current mode
+	mode_status := editor_mode
+	for _, mode_name := range b.modes {
+		mode_status += "+" + mode_name
+	}
+	mode_status = " " + mode_status + " "
 	write(ssbh, x, y+h-1, mode_status)
+
+	// Position
 	status_right := fmt.Sprintf("(%d,%d) %d ", b.cursor.char+1, b.cursor.line+1, len(b.data))
+	write(ssb, x+w-len(status_right), y+h-1, status_right)
+	// File name
 	status_left := " " + b.name
 	if b.modified {
 		status_left += " [+]"
 	}
-	write(ssb, x+w-len(status_right), y+h-1, status_right)
 	write(ssb, x+len(mode_status), y+h-1, padr(status_left, w-len(status_right)-len(mode_status), ' '))
 }
 
@@ -1289,7 +1359,7 @@ func (k *key) is_rune() bool {
 	return k.mod == 0 && k.key == tcell.KeyRune
 }
 
-// TODO implement num match
+// TODO implement alphanum match
 func (k1 *key) matches(k2 *key) bool {
 	if k1.key == key_type_catchall || k2.key == key_type_catchall {
 		return true
@@ -1298,6 +1368,12 @@ func (k1 *key) matches(k2 *key) bool {
 		return true
 	}
 	if k2.key == key_type_alpha && k1.is_rune() && is_alpha(k1.chr) {
+		return true
+	}
+	if k1.key == key_type_num && k2.is_rune() && is_num(k2.chr) {
+		return true
+	}
+	if k2.key == key_type_num && k1.is_rune() && is_num(k1.chr) {
 		return true
 	}
 	return k1.mod == k2.mod && k1.key == k2.key && k1.chr == k2.chr
@@ -1474,6 +1550,10 @@ func is_space(r rune) bool {
 
 func is_alpha(r rune) bool {
 	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+}
+
+func is_num(r rune) bool {
+	return r >= '0' && r <= '9'
 }
 
 /// }}}
