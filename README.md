@@ -54,6 +54,8 @@ mold to their image.
   - <kbd>d d</kbd> Deletes line under cursor
   - <kbd>y y</kbd> Copies line under cursor
   - <kbd>p</kbd> Pastes from clipboard
+  - <kbd>m $alpha</kbd> Set mark at cursor
+  - <kbd>' $alpha</kbd> Jump to mark
   - <kbd>C-w s</kbd> Splits buffer horizontally
   - <kbd>C-w v</kbd> Splits buffer vertically
   - <kbd>C-w h</kbd> Move to the window to the left
@@ -65,16 +67,20 @@ mold to their image.
   - <kbd>BAK</kbd> Deletes character to the left
   - <kbd>RET</kbd> Inserts a new line at cursor position
   - <kbd>ESC</kbd> Enters normal mode
-- Command mode
+- Prompt mode
   - <kbd>$any</kbd> Inserts character
   - <kbd>BAK</kbd> Deletes character
+  - <kbd>C-c</kbd> Enters normal mode
   - <kbd>ESC</kbd> Enters normal mode
   - <kbd>RET</kbd> Execute command and go back to normal mode
   - <kbd>C-u</kbd> Clear entered command
 
 **Currently implemented command**
 
-- none
+- `edit <filename>` (aliased as `e`) Edit a file in a new buffer
+- `write <filename?>` (aliased as `w`) Write buffer to disk, optionally setting it's path
+- `quit` (aliased as `q`) Close current buffer (making sure it's saved before)
+- `quit!` (aliased as `q!`) Close current buffer (ignoring unsaved changes)
 
 ### screenshot
 
