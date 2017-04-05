@@ -413,6 +413,10 @@ func prompt(prompt string, comp_fn func(string) []string, cb_fn func([]string)) 
 	enter_mode("prompt")
 }
 
+func noop_complete(prefix string) []string {
+	return []string{}
+}
+
 func prompt_update_completion() {
 	// TODO
 }
@@ -444,6 +448,7 @@ func prompt_insert(vt *view_tree, b *buffer, kl *key_list) {
 
 func prompt_command(vt *view_tree, b *buffer, kl *key_list) {
 	prompt(":", func(prefix string) []string {
+		// TODO provide command suggestions
 		return []string{}
 	}, run_command)
 }
@@ -516,7 +521,7 @@ func (loc *location) clone() *location {
 
 type char_range struct {
 	beg int
-	ent int
+	end int
 }
 
 func new_char_range(b, e int) *char_range {
@@ -1117,6 +1122,11 @@ func style(name string) tcell.Style {
 			Foreground(tcell.ColorYellow).
 			Background(tcell.ColorDefault)
 	}
+	if name == "search" {
+		return tcell.StyleDefault.
+			Foreground(tcell.ColorBlack).
+			Background(tcell.ColorWhite)
+	}
 	if name == "special" {
 		return tcell.StyleDefault.
 			Foreground(tcell.ColorYellow).
@@ -1182,12 +1192,30 @@ func render_view(v *view, x, y, w, h int) {
 	s := style("default")
 	sc := style("cursor")
 	ss := style("special")
+	// sse := style("search")
 	sln := style("linenumber")
 	ssb := style("statusbar")
 	ssbh := style("statusbar.highlight")
 	b := v.buf
 
+	// TODO only compute on movment
 	v.adjust_scroll(w, h)
+
+	// Build style map
+	// TODO only compute on buffer changes
+	style_map := make([][]tcell.Style, len(b.data))
+	for l := range b.data {
+		style_map[l] = make([]tcell.Style, len(b.data[l])+1)
+		for c := range b.data[l] {
+			if v == current_view_tree.leaf && l == b.cursor.line && c == b.cursor.char {
+				style_map[l][c] = sc
+			} else if strings.ContainsRune(special_chars, b.data[l][c]) {
+				style_map[l][c] = ss
+			} else {
+				style_map[l][c] = s
+			}
+		}
+	}
 
 	gutterw := len(strconv.Itoa(len(b.data))) + 1
 	sy := y
@@ -1197,13 +1225,7 @@ func render_view(v *view, x, y, w, h int) {
 
 		sx := x + gutterw
 		for c, char := range b.data[line] {
-			if v == current_view_tree.leaf && line == b.cursor.line && c == b.cursor.char {
-				sx += write(sc, sx, sy, string(char))
-			} else if strings.ContainsRune(special_chars, char) {
-				sx += write(ss, sx, sy, string(char))
-			} else {
-				sx += write(s, sx, sy, string(char))
-			}
+			sx += write(style_map[line][c], sx, sy, string(char))
 			if sx >= x+w {
 				break
 			}
