@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -116,11 +117,19 @@ type mode struct {
 var modes = map[string]*mode{}
 
 func mode_handle(m *mode, kl *key_list) *key_list {
+	var match *key_list = nil
+	var match_binding *mode_binding = nil
 	for _, binding := range m.bindings {
 		if matched := kl.has_suffix(binding.k); matched != nil {
-			binding.f(current_view_tree, current_view_tree.leaf.buf, matched)
-			return matched
+			if match == nil || len(matched.keys) > len(match.keys) {
+				match_binding = binding
+				match = matched
+			}
 		}
+	}
+	if match != nil {
+		match_binding.f(current_view_tree, current_view_tree.leaf.buf, match)
+		return match
 	}
 	return nil
 }
@@ -210,13 +219,29 @@ func init_modes() {
 	})
 	bind("buffers", k("RET"), func(vt *view_tree, b *buffer, kl *key_list) {
 		close_current_buffer(true)
-		// TODO support buffer n > 9
-		show_buffer(string(b.data[b.cursor.line][2:]))
+		show_buffer(string(b.data[b.cursor.line]))
 	})
-	bind("buffers", k("$num"), func(vt *view_tree, b *buffer, kl *key_list) {
+
+	add_mode("directory")
+	bind("directory", k("q"), func(vt *view_tree, b *buffer, kl *key_list) {
 		close_current_buffer(true)
-		// TODO support buffer n > 9
-		show_buffer(string(b.data[kl.keys[0].chr-'0'-1][2:]))
+	})
+	bind("directory", k("RET"), func(vt *view_tree, b *buffer, kl *key_list) {
+		close_current_buffer(true)
+		file_path := filepath.Join(b.path, string(b.data[b.cursor.line]))
+		run_command([]string{"edit", file_path})
+	})
+
+	// TODO Remove once I have user configurable bindings
+	bind("normal", k("SPC b"), func(vt *view_tree, b *buffer, kl *key_list) {
+		run_command([]string{"buffers"})
+	})
+	bind("normal", k("SPC f"), func(vt *view_tree, b *buffer, kl *key_list) {
+		if b.path == "" {
+			run_command([]string{"edit", "."})
+		} else {
+			run_command([]string{"edit", filepath.Dir(b.path)})
+		}
 	})
 }
 
@@ -801,6 +826,45 @@ func (a *action) remove(b *buffer) {
 
 // {{{ commands
 func open_buffer_from_file(path string) *buffer {
+	if file_info, err := os.Stat(path); os.IsNotExist(err) || err != nil {
+		return open_buffer_named(filepath.Base(path))
+	} else {
+		if file_info.IsDir() {
+			file, err := os.Open(path)
+			if err != nil {
+				message_error("Error opening directory: " + err.Error())
+				return nil
+			}
+			files, err := file.Readdir(0)
+			if err != nil {
+				message_error("Error opening directory: " + err.Error())
+				return nil
+			}
+			buf := new_buffer(filepath.Base(path), path)
+			buf.data = [][]rune{}
+			file_names := []string{}
+			for _, file_info := range files {
+				if file_info.IsDir() {
+					file_names = append(file_names, " "+file_info.Name())
+				} else {
+					file_names = append(file_names, file_info.Name())
+				}
+			}
+			file_names = append(file_names, " ..")
+			sort.Strings(file_names)
+			for _, file_name := range file_names {
+				if file_name[0] == ' ' { // is dir
+					buf.data = append(buf.data, []rune(file_name[1:]+"/"))
+				} else {
+					buf.data = append(buf.data, []rune(file_name))
+				}
+			}
+			buf.add_mode("directory")
+			buffers = append(buffers, buf)
+			return buf
+		}
+	}
+
 	buf := new_buffer(filepath.Base(path), path)
 	if buf.path != "" {
 		contents, err := ioutil.ReadFile(buf.path)
@@ -811,6 +875,9 @@ func open_buffer_from_file(path string) *buffer {
 		buf.data = [][]rune{}
 		for _, line := range strings.Split(string(contents), "\n") {
 			buf.data = append(buf.data, []rune(line))
+		}
+		if len(buf.data) > 1 {
+			buf.data = buf.data[:len(buf.data)-1]
 		}
 	}
 	buffers = append(buffers, buf)
@@ -921,18 +988,7 @@ func init_commands() {
 			if err != nil {
 				path = args[1]
 			}
-			var b *buffer
-			if file_info, err := os.Stat(path); os.IsNotExist(err) || err != nil {
-				b = open_buffer_named(args[1])
-			} else {
-				if file_info.IsDir() {
-					b = open_buffer_named(filepath.Base(path))
-					b.path = path
-				} else {
-					b = open_buffer_from_file(path)
-				}
-			}
-			if b != nil {
+			if b := open_buffer_from_file(path); b != nil {
 				show_buffer(b.name)
 			}
 		}
@@ -940,7 +996,7 @@ func init_commands() {
 	})
 	add_alias("e", "edit")
 	add_alias("o", "edit")
-	add_command("write", func(args []string) {
+	add_command("writequit", func(args []string) {
 		run_command([]string{"write"})
 		run_command([]string{"quit"})
 	})
@@ -952,12 +1008,11 @@ func init_commands() {
 			b.add_mode("buffers")
 		}
 		b.data = [][]rune{}
-		for i, buf := range buffers {
+		for _, buf := range buffers {
 			if buf.name != "*buffers*" {
-				b.data = append(b.data, []rune(strconv.Itoa(i+1)+" "+buf.name))
+				b.data = append(b.data, []rune(buf.name))
 			}
 		}
-		b.data = append(b.data, []rune{})
 		show_buffer(b.name)
 	})
 	add_alias("b", "buffers")
@@ -1308,7 +1363,8 @@ func new_key(rep string) *key {
 	case "RET":
 		k = tcell.KeyEnter
 	case "SPC":
-		k = tcell.Key(' ')
+		k = tcell.KeyRune
+		r = ' '
 	case "ESC":
 		k = tcell.KeyEscape
 	case "TAB":
@@ -1344,12 +1400,13 @@ func (k *key) String() string {
 		name = "BAK"
 	case tcell.KeyEnter:
 		name = "RET"
-	case tcell.Key(' '):
-		name = "SPC"
 	case tcell.KeyEscape:
 		name = "ESC"
 	case tcell.KeyTab:
 		name = "TAB"
+	}
+	if k.key == tcell.KeyRune && k.chr == ' ' {
+		name = "SPC"
 	}
 
 	return strings.Join(append(mods, name), "-")

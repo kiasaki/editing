@@ -81,6 +81,7 @@ mold to their image.
 - `write <filename?>` (aliased as `w`) Write buffer to disk, optionally setting it's path
 - `quit` (aliased as `q`) Close current buffer (making sure it's saved before)
 - `quit!` (aliased as `q!`) Close current buffer (ignoring unsaved changes)
+- `writequit` (aliased as `wq`) Writes buffer to disk then closes it
 
 ### screenshot
 
