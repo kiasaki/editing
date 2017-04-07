@@ -905,7 +905,7 @@ func open_buffer_from_file(path string) *buffer {
 			}
 			buf.add_mode("directory")
 			buffers = append(buffers, buf)
-			hook_trigger_buffer("changed", buf)
+			hook_trigger_buffer("modified", buf)
 			return buf
 		}
 	}
@@ -926,14 +926,14 @@ func open_buffer_from_file(path string) *buffer {
 		}
 	}
 	buffers = append(buffers, buf)
-	hook_trigger_buffer("changed", buf)
+	hook_trigger_buffer("modified", buf)
 	return buf
 }
 
 func open_buffer_named(name string) *buffer {
 	buf := new_buffer(name, "")
 	buffers = append(buffers, buf)
-	hook_trigger_buffer("changed", buf)
+	hook_trigger_buffer("modified", buf)
 	return buf
 }
 
@@ -1060,7 +1060,7 @@ func init_commands() {
 				b.data = append(b.data, []rune(buf.name))
 			}
 		}
-		hook_trigger_buffer("changed", b)
+		hook_trigger_buffer("modified", b)
 		show_buffer(b.name)
 	})
 	add_alias("b", "buffers")
@@ -1172,7 +1172,27 @@ func style(name string) tcell.Style {
 	}
 	if name == "special" {
 		return tcell.StyleDefault.
+			Foreground(tcell.ColorFuchsia).
+			Background(tcell.ColorDefault)
+	}
+	if name == "text.string" {
+		return tcell.StyleDefault.
 			Foreground(tcell.ColorYellow).
+			Background(tcell.ColorDefault)
+	}
+	if name == "text.number" {
+		return tcell.StyleDefault.
+			Foreground(tcell.ColorBlue).
+			Background(tcell.ColorDefault)
+	}
+	if name == "text.reserved" {
+		return tcell.StyleDefault.
+			Foreground(tcell.ColorFuchsia).
+			Background(tcell.ColorDefault)
+	}
+	if name == "text.special" {
+		return tcell.StyleDefault.
+			Foreground(tcell.ColorGreen).
 			Background(tcell.ColorDefault)
 	}
 	if name == "cursor" {
@@ -1619,6 +1639,15 @@ func write(style tcell.Style, x, y int, str string) int {
 
 	// i is the real width of what we just outputed
 	return i
+}
+
+func list_contains_string(list []string, search string) bool {
+	for _, item := range list {
+		if item == search {
+			return true
+		}
+	}
+	return false
 }
 
 func padr(str string, length int, padding rune) string {

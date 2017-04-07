@@ -19,6 +19,7 @@ func init_search() {
 
 	add_command("clearsearch", func(args []string) {
 		last_search_highlight = false
+		highlight_buffer(current_view_tree.leaf.buf)
 	})
 	add_alias("cs", "clearsearch")
 }
@@ -56,6 +57,7 @@ func search_prev(vt *view_tree, b *buffer, kl *key_list) {
 		last_search_index--
 	}
 	last_search_highlight = true
+	highlight_buffer(current_view_tree.leaf.buf)
 	loc := last_search_results[last_search_index]
 	b.move_to(loc.char, loc.line)
 }
@@ -71,6 +73,7 @@ func search_next(vt *view_tree, b *buffer, kl *key_list) {
 		last_search_index++
 	}
 	last_search_highlight = true
+	highlight_buffer(current_view_tree.leaf.buf)
 	loc := last_search_results[last_search_index]
 	b.move_to(loc.char, loc.line)
 }
