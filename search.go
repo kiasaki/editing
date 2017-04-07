@@ -49,7 +49,8 @@ func search_prev(vt *view_tree, b *buffer, kl *key_list) {
 	} else {
 		last_search_index--
 	}
-	b.cursor = last_search_results[last_search_index].clone()
+	loc := last_search_results[last_search_index]
+	b.move_to(loc.char, loc.line)
 }
 
 func search_next(vt *view_tree, b *buffer, kl *key_list) {
@@ -62,5 +63,6 @@ func search_next(vt *view_tree, b *buffer, kl *key_list) {
 	} else {
 		last_search_index++
 	}
-	b.cursor = last_search_results[last_search_index].clone()
+	loc := last_search_results[last_search_index]
+	b.move_to(loc.char, loc.line)
 }

@@ -50,6 +50,10 @@ func main() {
 
 	defer handle_panics()
 
+	init_config()
+	init_hooks()
+	init_highlighting()
+
 	init_screen()
 	init_term_events()
 	init_buffers()
@@ -57,7 +61,7 @@ func main() {
 	init_modes()
 	init_commands()
 
-	init_config()
+	init_search()
 
 	render()
 
@@ -552,14 +556,16 @@ func new_char_range(b, e int) *char_range {
 }
 
 type buffer struct {
-	data          [][]rune
-	history       []*action
-	history_index int
-	name          string
-	path          string
-	modified      bool
-	cursor        *location
-	modes         []string
+	data               [][]rune
+	history            []*action
+	history_index      int
+	name               string
+	path               string
+	modified           bool
+	cursor             *location
+	modes              []string
+	last_render_width  int
+	last_render_height int
 }
 
 func new_buffer(name string, path string) *buffer {
@@ -614,6 +620,7 @@ func (b *buffer) last_line() bool {
 func (b *buffer) move_to(c, l int) {
 	b.cursor.line = max(min(l, len(b.data)-1), 0)
 	b.cursor.char = max(min(c, len(b.data[b.cursor.line])), 0)
+	hook_trigger_buffer("moved", b)
 }
 
 func (b *buffer) move(c, l int) {
@@ -627,14 +634,13 @@ func (b *buffer) move_word_forward() bool {
 			if b.last_line() {
 				return false
 			} else {
-				b.cursor.line++
-				b.cursor.char = 0
+				b.move_to(0, b.cursor.line+1)
 				break
 			}
 		}
 
 		for is_word(c) && c != '\n' {
-			b.cursor.char++
+			b.move(1, 0)
 			c = b.char_under_cursor()
 		}
 
@@ -646,7 +652,7 @@ func (b *buffer) move_word_forward() bool {
 
 	c := b.char_under_cursor()
 	for !is_word(c) && c != '\n' {
-		b.cursor.char++
+		b.move(1, 0)
 		c = b.char_under_cursor()
 	}
 
@@ -660,14 +666,13 @@ func (b *buffer) move_word_backward() bool {
 			if b.first_line() {
 				return false
 			} else {
-				b.cursor.line--
-				b.cursor.char = len(b.data[b.cursor.line])
+				b.move_to(len(b.data[b.cursor.line-1]), b.cursor.line-1)
 				continue
 			}
 		}
 
 		for !is_word(c) && b.cursor.char != 0 {
-			b.cursor.char--
+			b.move(-1, 0)
 			c = b.char_under_cursor()
 		}
 
@@ -679,7 +684,7 @@ func (b *buffer) move_word_backward() bool {
 
 	c := b.char_under_cursor()
 	for is_word(c) && b.cursor.char != 0 {
-		b.cursor.char--
+		b.move(-1, 0)
 		c = b.char_under_cursor()
 	}
 
@@ -803,13 +808,15 @@ func new_action(typ action_type, loc *location, data []rune) *action {
 }
 
 func (a *action) apply(b *buffer) {
-	b.modified = true
 	a.do(b, a.typ)
+	b.modified = true
+	hook_trigger_buffer("modified", b)
 }
 
 func (a *action) revert(b *buffer) {
-	b.modified = true
 	a.do(b, -a.typ)
+	b.modified = true
+	hook_trigger_buffer("modified", b)
 }
 
 func (a *action) do(b *buffer, typ action_type) {
@@ -895,6 +902,7 @@ func open_buffer_from_file(path string) *buffer {
 			}
 			buf.add_mode("directory")
 			buffers = append(buffers, buf)
+			hook_trigger_buffer("changed", buf)
 			return buf
 		}
 	}
@@ -915,12 +923,14 @@ func open_buffer_from_file(path string) *buffer {
 		}
 	}
 	buffers = append(buffers, buf)
+	hook_trigger_buffer("changed", buf)
 	return buf
 }
 
 func open_buffer_named(name string) *buffer {
 	buf := new_buffer(name, "")
 	buffers = append(buffers, buf)
+	hook_trigger_buffer("changed", buf)
 	return buf
 }
 
@@ -1047,6 +1057,7 @@ func init_commands() {
 				b.data = append(b.data, []rune(buf.name))
 			}
 		}
+		hook_trigger_buffer("changed", b)
 		show_buffer(b.name)
 	})
 	add_alias("b", "buffers")
@@ -1218,33 +1229,16 @@ func render_view_tree(vt *view_tree, x, y, w, h int) {
 }
 
 func render_view(v *view, x, y, w, h int) {
-	s := style("default")
 	sc := style("cursor")
-	ss := style("special")
-	// sse := style("search")
 	sln := style("linenumber")
 	ssb := style("statusbar")
 	ssbh := style("statusbar.highlight")
 	b := v.buf
 
-	// TODO only compute on movment
-	v.adjust_scroll(w, h)
+	b.last_render_width = w
+	b.last_render_height = h
 
-	// Build style map
-	// TODO only compute on buffer changes
-	style_map := make([][]tcell.Style, len(b.data))
-	for l := range b.data {
-		style_map[l] = make([]tcell.Style, len(b.data[l])+1)
-		for c := range b.data[l] {
-			if v == current_view_tree.leaf && l == b.cursor.line && c == b.cursor.char {
-				style_map[l][c] = sc
-			} else if strings.ContainsRune(special_chars, b.data[l][c]) {
-				style_map[l][c] = ss
-			} else {
-				style_map[l][c] = s
-			}
-		}
-	}
+	style_map := highlighting_styles(b)
 
 	gutterw := len(strconv.Itoa(len(b.data))) + 1
 	sy := y
@@ -1254,7 +1248,11 @@ func render_view(v *view, x, y, w, h int) {
 
 		sx := x + gutterw
 		for c, char := range b.data[line] {
-			sx += write(style_map[line][c], sx, sy, string(char))
+			if v == current_view_tree.leaf && line == b.cursor.line && c == b.cursor.char {
+				sx += write(sc, sx, sy, string(char))
+			} else {
+				sx += write(style_map[line][c], sx, sy, string(char))
+			}
 			if sx >= x+w {
 				break
 			}
