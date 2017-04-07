@@ -57,6 +57,8 @@ func main() {
 	init_modes()
 	init_commands()
 
+	init_config()
+
 	render()
 
 top:
@@ -325,9 +327,11 @@ func enter_insert_mode_nl_up(vt *view_tree, b *buffer, kl *key_list) {
 }
 
 func insert_enter(vt *view_tree, b *buffer, kl *key_list) {
-	b.insert([]rune("\n"))
-	move_down(vt, b, kl)
-	move_line_beg(vt, b, kl)
+	i := 0
+	for ; i < len(b.data[b.cursor.line]) && is_space(b.data[b.cursor.line][i]); i++ {
+	}
+	b.insert([]rune("\n" + strings.Repeat(" ", i)))
+	b.move_to(i, b.cursor.line+1)
 }
 func insert_backspace(vt *view_tree, b *buffer, kl *key_list) {
 	if b.cursor.char == 0 {
@@ -337,15 +341,34 @@ func insert_backspace(vt *view_tree, b *buffer, kl *key_list) {
 			b.remove(1)
 		}
 	} else {
-		move_left(vt, b, kl)
-		b.remove(1)
+		if b.char_at_left() != ' ' {
+			b.move(-1, 0)
+			b.remove(1)
+			return
+		}
+		// handle spaces
+		delete_n := 1
+		if config_get_bool("tab_to_spaces", b) {
+			delete_n = int(config_get_number("tab_width", b))
+		}
+		for i := 0; i < delete_n && b.char_at_left() == ' '; i++ {
+			b.move(-1, 0)
+			b.remove(1)
+		}
 	}
 }
 func insert(vt *view_tree, b *buffer, kl *key_list) {
 	k := kl.keys[len(kl.keys)-1]
 	if k.key == tcell.KeyTab {
-		b.insert([]rune{'\t'})
-		move_right(vt, b, kl)
+		if config_get_bool("tab_to_spaces", b) {
+			tab_width := int(config_get_number("tab_width", b))
+			message(strconv.Itoa(tab_width))
+			b.insert([]rune(strings.Repeat(" ", tab_width)))
+			b.move(tab_width, 0)
+		} else {
+			b.insert([]rune{'\t'})
+			b.move(1, 0)
+		}
 	} else if k.key == tcell.KeyRune && k.mod == 0 {
 		b.insert([]rune{k.chr})
 		move_right(vt, b, kl)
@@ -563,11 +586,17 @@ func new_buffer(name string, path string) *buffer {
 
 func (b *buffer) char_at(l, c int) rune {
 	line := b.data[l]
-	if c < len(line) {
+	if c < 0 {
+		return rune(0)
+	} else if c < len(line) {
 		return line[c]
 	} else {
 		return '\n'
 	}
+}
+
+func (b *buffer) char_at_left() rune {
+	return b.char_at(b.cursor.line, b.cursor.char-1)
 }
 
 func (b *buffer) char_under_cursor() rune {
@@ -1542,14 +1571,14 @@ func write(style tcell.Style, x, y int, str string) int {
 		// Handle tabs
 		if r == '\t' {
 			// TODO setting
-			tabWidth := 4
+			tab_width := int(config_get_number("tab_width", nil))
 
 			// Print first tab char
 			s.SetContent(x+i, y, '>', nil, style.Foreground(tcell.ColorAqua))
 			i++
 
-			// Add space till we reach tab column or tabWidth
-			for j := 0; j < tabWidth-1 || i%tabWidth == 0; j++ {
+			// Add space till we reach tab column or tab_width
+			for j := 0; j < tab_width-1 || i%tab_width == 0; j++ {
 				s.SetContent(x+i, y, ' ', nil, style)
 				i++
 			}
