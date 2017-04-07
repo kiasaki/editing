@@ -24,6 +24,16 @@ func init_highlighting() {
 		for l := range b.data {
 			style_map[l] = make([]tcell.Style, len(b.data[l])+1)
 			for c := range b.data[l] {
+				if high_len := search_highlight(l, c); high_len > 0 {
+					for i := 0; i < high_len; i++ {
+						if style_map[l][c+i] == 0 {
+							style_map[l][c+i] = sse
+						}
+					}
+				}
+				if style_map[l][c] != 0 {
+					continue
+				}
 				if strings.ContainsRune(special_chars, b.data[l][c]) {
 					style_map[l][c] = ss
 				} else {

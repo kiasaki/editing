@@ -28,7 +28,7 @@ const (
 var (
 	keys_entered                     = new_key_list("")
 	last_key                         = new_key_list("")
-	term_events                      = make(chan tcell.Event, 20)
+	term_events                      = make(chan tcell.Event, 500)
 	default_clipboard                = '_'
 	clipboards                       = map[rune][]rune{'_': []rune{}}
 	editor_mode                      = "normal"
@@ -50,18 +50,18 @@ func main() {
 
 	defer handle_panics()
 
+	init_modes()
+	init_commands()
+
 	init_config()
 	init_hooks()
 	init_highlighting()
+	init_search()
 
 	init_screen()
 	init_term_events()
 	init_buffers()
 	init_views()
-	init_modes()
-	init_commands()
-
-	init_search()
 
 	render()
 
@@ -248,6 +248,9 @@ func init_modes() {
 		} else {
 			run_command([]string{"edit", filepath.Dir(b.path)})
 		}
+	})
+	bind("normal", k("SPC n"), func(vt *view_tree, b *buffer, kl *key_list) {
+		run_command([]string{"clearsearch"})
 	})
 }
 
@@ -1165,7 +1168,7 @@ func style(name string) tcell.Style {
 	if name == "search" {
 		return tcell.StyleDefault.
 			Foreground(tcell.ColorBlack).
-			Background(tcell.ColorWhite)
+			Background(tcell.ColorYellow)
 	}
 	if name == "special" {
 		return tcell.StyleDefault.
