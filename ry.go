@@ -1147,62 +1147,51 @@ func style(name string) tcell.Style {
 	// TODO make table based and configurable
 	if name == "message.error" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorRed).
-			Background(tcell.ColorDefault)
+			Foreground(tcell.ColorMaroon)
 	}
 	if name == "statusbar" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorBlack).
-			Background(tcell.ColorAqua)
+			Foreground(tcell.ColorWhite).
+			Background(tcell.ColorNavy)
 	}
 	if name == "statusbar.highlight" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorBlack).
-			Background(tcell.ColorYellow)
+			Foreground(tcell.ColorWhite).
+			Background(tcell.ColorOlive)
 	}
 	if name == "linenumber" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorYellow).
-			Background(tcell.ColorDefault)
+			Foreground(tcell.ColorOlive)
 	}
 	if name == "search" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorBlack).
-			Background(tcell.ColorYellow)
+			Foreground(tcell.ColorWhite).
+			Background(tcell.ColorOlive)
 	}
 	if name == "special" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorFuchsia).
-			Background(tcell.ColorDefault)
+			Foreground(tcell.ColorPurple)
 	}
 	if name == "text.string" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorYellow).
-			Background(tcell.ColorDefault)
+			Foreground(tcell.ColorOlive)
 	}
 	if name == "text.number" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorBlue).
-			Background(tcell.ColorDefault)
+			Foreground(tcell.ColorNavy)
 	}
 	if name == "text.reserved" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorFuchsia).
-			Background(tcell.ColorDefault)
+			Foreground(tcell.ColorPurple)
 	}
 	if name == "text.special" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorGreen).
-			Background(tcell.ColorDefault)
+			Foreground(tcell.ColorGreen)
 	}
 	if name == "cursor" {
-		return tcell.StyleDefault.
-			Foreground(tcell.ColorBlack).
-			Background(tcell.ColorWhite)
+		return tcell.StyleDefault.Reverse(true)
 	}
-	return tcell.StyleDefault.
-		Foreground(tcell.ColorWhite).
-		Background(tcell.ColorDefault)
+	return tcell.StyleDefault.Foreground(tcell.ColorBlack)
 }
 
 // }}}

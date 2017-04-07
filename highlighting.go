@@ -19,7 +19,7 @@ var (
 		"raise", "throw", "try", "catch", "except", "finally",
 	}
 	highlighting_special_words = []string{
-		"self", "this",
+		"self", "this", "true", "false", "True", "False", "nil", "null", "None",
 	}
 )
 
@@ -42,8 +42,8 @@ func highlight_buffer(b *buffer) {
 
 	style_map := make([][]tcell.Style, len(b.data))
 	in_string := rune(0)
-	word := ""
 	for l := range b.data {
+		word := ""
 		style_map[l] = make([]tcell.Style, len(b.data[l])+1)
 		for c, char := range b.data[l] {
 			// for numbers
@@ -70,9 +70,9 @@ func highlight_buffer(b *buffer) {
 				continue
 			}
 			if char == '\'' || char == '"' {
-				if in_string > 0 {
+				if in_string == char {
 					in_string = rune(0)
-				} else {
+				} else if in_string == rune(0) {
 					in_string = char
 				}
 				style_map[l][c] = sts
