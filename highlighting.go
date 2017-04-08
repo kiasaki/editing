@@ -37,18 +37,25 @@ func highlight_buffer(b *buffer) {
 	sse := style("search")
 	sts := style("text.string")
 	stn := style("text.number")
+	stc := style("text.comment")
 	str := style("text.reserved")
 	stsp := style("text.special")
 
 	style_map := make([][]tcell.Style, len(b.data))
 	in_string := rune(0)
 	for l := range b.data {
+		in_line_comment := false
 		word := ""
 		style_map[l] = make([]tcell.Style, len(b.data[l])+1)
 		for c, char := range b.data[l] {
+			prev_char := rune(0)
+			if c > 0 {
+				prev_char = b.data[l][c-1]
+			}
+
 			// for numbers
 			passed_alpha := false
-			if c > 0 && is_alpha(b.data[l][c-1]) {
+			if is_alpha(prev_char) {
 				passed_alpha = true
 			}
 			// for special words
@@ -60,14 +67,24 @@ func highlight_buffer(b *buffer) {
 
 			if high_len := search_highlight(l, c); high_len > 0 {
 				for i := 0; i < high_len; i++ {
+					// TODO check bounds (limit to current buff)
 					if style_map[l][c+i] == 0 {
 						style_map[l][c+i] = sse
 					}
 				}
 			}
+			if in_line_comment {
+				style_map[l][c] = stc
+				continue
+			}
 			if in_string > 0 && c-1 > 0 && b.data[l][c-1] == '\\' && (c-2 < 0 || b.data[l][c-2] != '\\') {
 				style_map[l][c] = sts
 				continue
+			}
+			if char == '/' && prev_char == '/' {
+				in_line_comment = true
+				style_map[l][c] = stc
+				style_map[l][c-1] = stc
 			}
 			if char == '\'' || char == '"' {
 				if in_string == char {

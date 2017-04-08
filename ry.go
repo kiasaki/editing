@@ -1180,6 +1180,10 @@ func style(name string) tcell.Style {
 		return tcell.StyleDefault.
 			Foreground(tcell.ColorNavy)
 	}
+	if name == "text.comment" {
+		return tcell.StyleDefault.
+			Foreground(10)
+	}
 	if name == "text.reserved" {
 		return tcell.StyleDefault.
 			Foreground(tcell.ColorPurple)
@@ -1191,7 +1195,7 @@ func style(name string) tcell.Style {
 	if name == "cursor" {
 		return tcell.StyleDefault.Reverse(true)
 	}
-	return tcell.StyleDefault.Foreground(tcell.ColorBlack)
+	return tcell.StyleDefault.Foreground(tcell.ColorGray)
 }
 
 // }}}
