@@ -1152,16 +1152,16 @@ func style(name string) tcell.Style {
 	if name == "statusbar" {
 		return tcell.StyleDefault.
 			Foreground(tcell.ColorWhite).
-			Background(tcell.ColorNavy)
+			Background(tcell.Color(6))
 	}
 	if name == "statusbar.highlight" {
 		return tcell.StyleDefault.
 			Foreground(tcell.ColorWhite).
-			Background(tcell.ColorOlive)
+			Background(tcell.Color(5))
 	}
 	if name == "linenumber" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorOlive)
+			Foreground(tcell.Color(6))
 	}
 	if name == "search" {
 		return tcell.StyleDefault.
@@ -1190,12 +1190,12 @@ func style(name string) tcell.Style {
 	}
 	if name == "text.special" {
 		return tcell.StyleDefault.
-			Foreground(tcell.ColorGreen)
+			Foreground(tcell.Color(6))
 	}
 	if name == "cursor" {
 		return tcell.StyleDefault.Reverse(true)
 	}
-	return tcell.StyleDefault.Foreground(tcell.ColorGray)
+	return tcell.StyleDefault.Foreground(tcell.Color(0))
 }
 
 // }}}
