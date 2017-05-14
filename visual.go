@@ -6,12 +6,14 @@ func init_visual() {
 	bind("visual", k("y"), visual_mode_yank)
 	bind("visual", k("d"), visual_mode_delete)
 	bind("visual", k("p"), visual_mode_paste)
+	bind("visual", k("c"), visual_mode_change)
 
 	add_mode("visual-line")
 	bind("visual-line", k("ESC"), exit_visual_mode)
 	bind("visual-line", k("y"), visual_mode_yank)
 	bind("visual-line", k("d"), visual_mode_delete)
 	bind("visual-line", k("p"), visual_mode_paste)
+	bind("visual-line", k("c"), visual_mode_change)
 
 	hook_buffer("moved", visual_rehighlight)
 }
@@ -75,7 +77,7 @@ func visual_mode_selection(b *buffer) ([]rune, *location, *location) {
 		line_data := b.get_line(l)
 		end_char := len(line_data)
 		if l == l2.line {
-			end_char = l2.char + 1
+			end_char = min(l2.char+1, len(line_data))
 		}
 		data = append(data, line_data[start_char:end_char]...)
 		if l != l2.line || end_char == len(line_data) {
@@ -109,4 +111,12 @@ func visual_mode_paste(vt *view_tree, b *buffer, kl *key_list) {
 
 	b.move_to(l1.char, l1.line)
 	exit_visual_mode(vt, b, kl)
+}
+func visual_mode_change(vt *view_tree, b *buffer, kl *key_list) {
+	text, l1, _ := visual_mode_selection(b)
+	b.move_to(l1.char, l1.line)
+	b.remove(len(text))
+
+	exit_visual_mode(vt, b, kl)
+	enter_insert_mode(vt, b, kl)
 }

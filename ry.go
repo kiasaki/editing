@@ -425,6 +425,7 @@ func command_paste(vt *view_tree, b *buffer, kl *key_list) {
 		message("Nothing to paste!")
 		return
 	}
+     b.move(1, 0)
 	b.insert(value)
 }
 

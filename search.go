@@ -17,6 +17,7 @@ func init_search() {
 	bind("normal", k("/"), search_start)
 	bind("normal", k("N"), search_prev)
 	bind("normal", k("n"), search_next)
+	bind("normal", k("*"), search_search_work_under_cursor)
 	bind("normal", k("SPC n"), func(vt *view_tree, b *buffer, kl *key_list) {
 		search_clear()
 	})
@@ -101,3 +102,7 @@ func search_highlight(b *buffer, l, c int) int {
 	}
 	return 0
 }
+
+func search_search_work_under_cursor(vt *view_tree, b *buffer, kl *key_list) {
+}
+
