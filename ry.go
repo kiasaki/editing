@@ -501,7 +501,8 @@ func clipboard_get(register rune) []rune {
 		if value, err := zclip.ReadAll("clipboard"); err == nil {
 			return []rune(value)
 		}
-	} else if value, ok := clipboards[register]; ok {
+	}
+	if value, ok := clipboards[register]; ok {
 		return value
 	}
 	return []rune{}
@@ -511,6 +512,7 @@ func clipboard_set(register rune, value []rune) {
 	if register == default_clipboard {
 		if err := zclip.WriteAll(string(value), "clipboard"); err != nil {
 			message_error("Error clipboard_get: " + err.Error())
+			clipboards[register] = value
 		}
 	} else {
 		clipboards[register] = value
@@ -651,6 +653,10 @@ func (b *buffer) char_at(l, c int) rune {
 	}
 }
 
+func (b *buffer) get_line(l int) []rune {
+	return b.data[l]
+}
+
 func (b *buffer) char_at_left() rune {
 	return b.char_at(b.cursor.line, b.cursor.char-1)
 }
@@ -748,12 +754,16 @@ func (b *buffer) insert(data []rune) {
 	a.apply(b)
 }
 
-func (b *buffer) remove(n int) []rune {
-	a := new_action(action_type_remove, b.cursor.clone(), make([]rune, n))
+func (b *buffer) remove_at(loc *location, n int) []rune {
+	a := new_action(action_type_remove, loc.clone(), make([]rune, n))
 	b.history_index++
 	b.history = try_merge_history(b.history[:b.history_index], a)
 	a.apply(b)
 	return a.data
+}
+
+func (b *buffer) remove(n int) []rune {
+	return b.remove_at(b.cursor, n)
 }
 
 func (b *buffer) undo() {
