@@ -1,6 +1,10 @@
 # ry
 
-_A simple modal text editor, written in Go, scriptable in Lua_
+_A simple modal text editor, written in Go_
+
+or
+
+_This is my editor. There are many like it, but this one is mine._
 
 ### installing
 
@@ -41,6 +45,7 @@ mold to their image.
   - <kbd>C-d</kbd> Moves 15 lines down
   - <kbd>z z</kbd> Centers current line in view
   - <kbd>w</kbd> Moves forward to next beginning of a word
+  - <kbd>e</kbd> Moves forward to next end of a word
   - <kbd>b</kbd> Moves backwards to next beginning of a word
   - <kbd>i</kbd> Enters insert-mode
   - <kbd>I</kbd> Enters insert-mode at beginning of line
@@ -56,12 +61,17 @@ mold to their image.
   - <kbd>p</kbd> Pastes from clipboard
   - <kbd>m $alpha</kbd> Set mark at cursor
   - <kbd>' $alpha</kbd> Jump to mark
+  - <kbd>v</kbd> Enter visual mode
+  - <kbd>V</kbd> Enter visual line mode
   - <kbd>C-w s</kbd> Splits buffer horizontally
   - <kbd>C-w v</kbd> Splits buffer vertically
   - <kbd>C-w h</kbd> Move to the window to the left
   - <kbd>C-w j</kbd> Move to the window to the bottom
   - <kbd>C-w k</kbd> Move to the window to the top
   - <kbd>C-w l</kbd> Move to the window to the right
+  - <kbd>SPC b</kbd> Runs `buffers` command
+  - <kbd>SPC f</kbd> Runs `edit` command on current file's directory
+  - <kbd>SPC n</kbd> Runs `clearsearch` command
 - Insert mode
   - <kbd>$any</kbd> Inserts character at cursor's position
   - <kbd>BAK</kbd> Deletes character to the left
@@ -74,6 +84,17 @@ mold to their image.
   - <kbd>ESC</kbd> Enters normal mode
   - <kbd>RET</kbd> Execute command and go back to normal mode
   - <kbd>C-u</kbd> Clear entered command
+- Visual mode
+  - <kbd>ESC</kbd> Exit visual mode
+  - <kbd>y</kbd> Yank selection
+  - <kbd>d</kbd> Delete selection
+  - <kbd>p</kbd> Paste selection
+- Buffers mode
+  - <kbd>q</kbd> Close buffer
+  - <kbd>RET</kbd> Open selected buffer in current window
+- Directory mode
+  - <kbd>q</kbd> Close buffer
+  - <kbd>RET</kbd> Open selected file in current window
 
 **Currently implemented command**
 

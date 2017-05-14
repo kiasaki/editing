@@ -38,7 +38,7 @@ func visual_highlight(b *buffer, l, c int) bool {
 	} else {
 		// compare using line numbers + char position
 		loc := new_location(l, c)
-		return loc.after(l1) && loc.before(l2)
+		return loc.after(l1) && loc.before(l2) || loc.equal(l1) || loc.equal(l2)
 	}
 }
 
@@ -75,7 +75,7 @@ func visual_mode_selection(b *buffer) ([]rune, *location, *location) {
 		line_data := b.get_line(l)
 		end_char := len(line_data)
 		if l == l2.line {
-			end_char = l2.char
+			end_char = l2.char + 1
 		}
 		data = append(data, line_data[start_char:end_char]...)
 		if l != l2.line || end_char == len(line_data) {

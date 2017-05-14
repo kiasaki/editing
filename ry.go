@@ -184,7 +184,6 @@ func init_modes() {
 	bind("normal", k("m $alpha"), command_mark)
 	bind("normal", k("' $alpha"), command_move_to_mark)
 	bind("normal", k(":"), prompt_command)
-	bind("normal", k("p"), command_paste)
 	bind("normal", k("h"), move_left)
 	bind("normal", k("j"), move_down)
 	bind("normal", k("k"), move_up)
@@ -197,6 +196,7 @@ func init_modes() {
 	bind("normal", k("C-d"), move_jump_down)
 	bind("normal", k("z z"), move_center_line)
 	bind("normal", k("w"), move_word_forward)
+	bind("normal", k("e"), move_word_end_forward)
 	bind("normal", k("b"), move_word_backward)
 	bind("normal", k("C-c"), cancel_keys_entered)
 	bind("normal", k("C-g"), cancel_keys_entered)
@@ -208,10 +208,10 @@ func init_modes() {
 	bind("normal", k("O"), enter_insert_mode_nl_up)
 	bind("normal", k("x"), remove_char)
 	bind("normal", k("d d"), remove_line)
-	bind("normal", k("u"), command_undo)
-	bind("normal", k("C-r"), command_redo)
 	bind("normal", k("y y"), command_copy_line)
 	bind("normal", k("p"), command_paste)
+	bind("normal", k("u"), command_undo)
+	bind("normal", k("C-r"), command_redo)
 	bind("normal", k("v"), enter_visual_mode)
 	bind("normal", k("V"), enter_visual_block_mode)
 
@@ -302,6 +302,9 @@ func move_word_backward(vt *view_tree, b *buffer, kl *key_list) {
 }
 func move_word_forward(vt *view_tree, b *buffer, kl *key_list) {
 	b.move_word_forward()
+}
+func move_word_end_forward(vt *view_tree, b *buffer, kl *key_list) {
+	b.move_word_end_forward()
 }
 
 func cancel_keys_entered(vt *view_tree, b *buffer, kl *key_list) {
@@ -575,6 +578,10 @@ func order_locations(l1, l2 *location) (*location, *location) {
 	}
 }
 
+func (l1 *location) equal(l2 *location) bool {
+	return l1.line == l2.line && l1.char == l2.char
+}
+
 func (l1 *location) before(l2 *location) bool {
 	ol1, _ := order_locations(l1, l2)
 	return l1 == ol1
@@ -715,7 +722,42 @@ func (b *buffer) move_word_forward() bool {
 	return true
 }
 
+func (b *buffer) move_word_end_forward() bool {
+	b.move(1, 0)
+	for {
+		c := b.char_under_cursor()
+		if c == '\n' {
+			if b.last_line() {
+				return false
+			} else {
+				b.move_to(0, b.cursor.line+1)
+				break
+			}
+		}
+
+		for !is_word(c) && c != '\n' {
+			b.move(1, 0)
+			c = b.char_under_cursor()
+		}
+
+		if c == '\n' {
+			continue
+		}
+		break
+	}
+
+	c := b.char_under_cursor()
+	for is_word(c) && c != '\n' {
+		b.move(1, 0)
+		c = b.char_under_cursor()
+	}
+	b.move(-1, 0)
+
+	return true
+}
+
 func (b *buffer) move_word_backward() bool {
+	b.move(-1, 0)
 	for {
 		c := b.char_under_cursor()
 		if b.cursor.char == 0 {
@@ -743,6 +785,7 @@ func (b *buffer) move_word_backward() bool {
 		b.move(-1, 0)
 		c = b.char_under_cursor()
 	}
+	b.move(1, 0)
 
 	return true
 }
