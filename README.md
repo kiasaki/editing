@@ -98,11 +98,13 @@ mold to their image.
 
 **Currently implemented command**
 
-- `edit <filename>` (aliased as `e`) Edit a file in a new buffer
+- `edit <filename>` (aliased as `e`) Edit a file in a new buffer (shows file selector on directories)
 - `write <filename?>` (aliased as `w`) Write buffer to disk, optionally setting it's path
 - `quit` (aliased as `q`) Close current buffer (making sure it's saved before)
 - `quit!` (aliased as `q!`) Close current buffer (ignoring unsaved changes)
 - `writequit` (aliased as `wq`) Writes buffer to disk then closes it
+- `clearsearch (aliased as `cs`) Hides search result highlights
+- `buffers` (aliased as `b`) Shows a list of buffers in current window
 
 ### screenshot
 
