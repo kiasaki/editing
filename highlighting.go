@@ -35,6 +35,7 @@ func highlight_buffer(b *buffer) {
 	s := style("default")
 	ss := style("special")
 	sse := style("search")
+	svi := style("visual")
 	sts := style("text.string")
 	stn := style("text.number")
 	stc := style("text.comment")
@@ -65,13 +66,16 @@ func highlight_buffer(b *buffer) {
 				word = ""
 			}
 
-			if high_len := search_highlight(l, c); high_len > 0 {
+			if high_len := search_highlight(b, l, c); high_len > 0 {
 				for i := 0; i < high_len; i++ {
-					// TODO check bounds (limit to current buff)
 					if style_map[l][c+i] == 0 {
 						style_map[l][c+i] = sse
 					}
 				}
+			}
+			if visual_highlight(b, l, c) {
+				style_map[l][c] = svi
+				continue
 			}
 			if in_line_comment {
 				style_map[l][c] = stc

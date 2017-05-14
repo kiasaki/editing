@@ -6,22 +6,30 @@ import (
 )
 
 var (
-	last_search           = ""
-	last_search_index     = 0
-	last_search_highlight = false
-	last_search_results   = []*location{}
+	last_search_buffer    *buffer = nil
+	last_search                   = ""
+	last_search_index             = 0
+	last_search_highlight         = false
+	last_search_results           = []*location{}
 )
 
 func init_search() {
 	bind("normal", k("/"), search_start)
 	bind("normal", k("N"), search_prev)
 	bind("normal", k("n"), search_next)
+	bind("normal", k("SPC n"), func(vt *view_tree, b *buffer, kl *key_list) {
+		search_clear()
+	})
 
 	add_command("clearsearch", func(args []string) {
-		last_search_highlight = false
-		highlight_buffer(current_view_tree.leaf.buf)
+		search_clear()
 	})
 	add_alias("cs", "clearsearch")
+}
+
+func search_clear() {
+	last_search_highlight = false
+	highlight_buffer(current_view_tree.leaf.buf)
 }
 
 func search_start(vt *view_tree, b *buffer, kl *key_list) {
@@ -31,6 +39,7 @@ func search_start(vt *view_tree, b *buffer, kl *key_list) {
 			last_search = search
 			re := regexp.MustCompile(regexp.QuoteMeta(search))
 
+			last_search_buffer = b
 			last_search_results = []*location{}
 			for i, line := range b.data {
 				idxs := re.FindAllStringIndex(string(line), -1)
@@ -78,8 +87,11 @@ func search_next(vt *view_tree, b *buffer, kl *key_list) {
 	b.move_to(loc.char, loc.line)
 }
 
-func search_highlight(l, c int) int {
+func search_highlight(b *buffer, l, c int) int {
 	if !last_search_highlight {
+		return 0
+	}
+	if last_search_buffer != b {
 		return 0
 	}
 	for _, loc := range last_search_results {

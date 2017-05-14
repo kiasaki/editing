@@ -57,6 +57,7 @@ func main() {
 	init_hooks()
 	init_highlighting()
 	init_search()
+	init_visual()
 
 	init_screen()
 	init_term_events()
@@ -74,23 +75,25 @@ top:
 				if ev.Key() == tcell.KeyCtrlQ {
 					screen.Fini()
 					break top
-				} else if ev.Key() == tcell.KeyEscape {
-					kl := k("ESC")
-					enter_normal_mode(current_view_tree, current_view_tree.leaf.buf, kl)
-					last_key = kl
-					keys_entered = k("")
+					/*
+						} else if ev.Key() == tcell.KeyEscape {
+							kl := k("ESC")
+							enter_normal_mode(current_view_tree, current_view_tree.leaf.buf, kl)
+							last_key = kl
+							keys_entered = k("")
+					*/
 				} else {
 					keys_entered.add_key(new_key_from_event(ev))
 
 					buf := current_view_tree.leaf.buf
 					for _, mode_name := range buf.modes {
-						if matched := mode_handle(find_mode(mode_name), keys_entered); matched != nil {
+						if matched := mode_handle(must_find_mode(mode_name), keys_entered); matched != nil {
 							keys_entered = k("")
 							last_key = matched
 							continue top
 						}
 					}
-					if matched := mode_handle(find_mode(editor_mode), keys_entered); matched != nil {
+					if matched := mode_handle(must_find_mode(editor_mode), keys_entered); matched != nil {
 						keys_entered = k("")
 						last_key = matched
 						continue top
@@ -148,6 +151,14 @@ func find_mode(name string) *mode {
 	}
 }
 
+func must_find_mode(name string) *mode {
+	mode := find_mode(name)
+	if mode == nil {
+		panic(fmt.Sprintf("no mode named '%s'", name))
+	}
+	return mode
+}
+
 // Adds a new empty mode to the mode list, if not already present
 func add_mode(name string) {
 	if _, ok := modes[name]; !ok {
@@ -156,10 +167,7 @@ func add_mode(name string) {
 }
 
 func bind(mode_name string, k *key_list, f command_fn) {
-	mode := find_mode(mode_name)
-	if mode == nil {
-		fatal("bind: no mode named '" + mode_name + "'")
-	}
+	mode := must_find_mode(mode_name)
 
 	// If this key is bound, update bound function
 	for _, binding := range mode.bindings {
@@ -204,6 +212,8 @@ func init_modes() {
 	bind("normal", k("C-r"), command_redo)
 	bind("normal", k("y y"), command_copy_line)
 	bind("normal", k("p"), command_paste)
+	bind("normal", k("v"), enter_visual_mode)
+	bind("normal", k("V"), enter_visual_block_mode)
 
 	add_mode("insert")
 	bind("insert", k("ESC"), enter_normal_mode)
@@ -523,6 +533,10 @@ func mark_create(mark_letter rune, b *buffer) *mark {
 	return m
 }
 
+func get_mark(mark_letter rune) *mark {
+	return marks[mark_letter]
+}
+
 func mark_jump(mark_letter rune) {
 	if m, ok := marks[mark_letter]; ok {
 		if b := show_buffer(m.buffer_name); b != nil {
@@ -543,6 +557,30 @@ type location struct {
 
 func new_location(l, c int) *location {
 	return &location{line: l, char: c}
+}
+
+func order_locations(l1, l2 *location) (*location, *location) {
+	if l1.line < l2.line {
+		return l1, l2
+	} else if l1.line > l2.line {
+		return l2, l1
+	} else {
+		if l1.char > l2.char {
+			return l2, l1
+		} else {
+			return l1, l2
+		}
+	}
+}
+
+func (l1 *location) before(l2 *location) bool {
+	ol1, _ := order_locations(l1, l2)
+	return l1 == ol1
+}
+
+func (l1 *location) after(l2 *location) bool {
+	_, ol2 := order_locations(l1, l2)
+	return l1 == ol2
 }
 
 func (loc *location) clone() *location {
@@ -591,6 +629,15 @@ func new_buffer(name string, path string) *buffer {
 	}
 
 	return b
+}
+
+func (b *buffer) is_in_mode(name string) bool {
+	for _, n := range b.modes {
+		if n == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *buffer) char_at(l, c int) rune {
@@ -751,12 +798,19 @@ check_name:
 }
 
 func (b *buffer) add_mode(name string) {
-	for _, mode := range b.modes {
-		if mode == name {
+	if b.is_in_mode(name) {
+		return
+	}
+	b.modes = append(b.modes, name)
+}
+
+func (b *buffer) remove_mode(name string) {
+	for i, n := range b.modes {
+		if n == name {
+			b.modes = append(b.modes[:i], b.modes[i+1:]...)
 			return
 		}
 	}
-	b.modes = append(b.modes, name)
 }
 
 func (b *buffer) contents() string {
@@ -1167,6 +1221,11 @@ func style(name string) tcell.Style {
 		return tcell.StyleDefault.
 			Foreground(tcell.ColorWhite).
 			Background(tcell.ColorOlive)
+	}
+	if name == "visual" {
+		return tcell.StyleDefault.
+			Foreground(tcell.ColorWhite).
+			Background(tcell.Color(0))
 	}
 	if name == "special" {
 		return tcell.StyleDefault.
