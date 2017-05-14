@@ -425,7 +425,7 @@ func command_paste(vt *view_tree, b *buffer, kl *key_list) {
 		message("Nothing to paste!")
 		return
 	}
-     b.move(1, 0)
+	b.move(1, 0)
 	b.insert(value)
 }
 
@@ -671,6 +671,23 @@ func (b *buffer) char_at_left() rune {
 
 func (b *buffer) char_under_cursor() rune {
 	return b.char_at(b.cursor.line, b.cursor.char)
+}
+
+func (b *buffer) word_under_cursor() []rune {
+	ch := b.char_under_cursor()
+	if !is_word(ch) {
+		return nil
+	}
+	line := b.get_line(b.cursor.line)
+	cstart := b.cursor.char
+	for cstart > 0 && is_word(b.char_at(b.cursor.line, cstart-1)) {
+		cstart--
+	}
+	cend := cstart
+	for cend < len(line) && is_word(b.char_at(b.cursor.line, cend+1)) {
+		cend++
+	}
+	return line[cstart : cend+1]
 }
 
 func (b *buffer) first_line() bool {
@@ -1705,7 +1722,7 @@ func write(style tcell.Style, x, y int, str string) int {
 			i++
 
 			// Add space till we reach tab column or tab_width
-			for j := 0; j < tab_width-1 || i%tab_width == 0; j++ {
+			for j := 0; j < tab_width-1 || i%tab_width == tab_width-1; j++ {
 				s.SetContent(x+i, y, ' ', nil, style)
 				i++
 			}
