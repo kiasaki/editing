@@ -11,6 +11,7 @@ class Editor:
         pass
 
     def show(self):
+        screen_height, screen_width = self.screen.getmaxyx()
         self.screen.clear()
         self.screen.addstr(0, 0, "Hello world" + self.last_key)
         self.screen.refresh()
@@ -30,6 +31,7 @@ class Editor:
         curses.noecho()
         curses.cbreak()
         curses.raw()
+        curses.setsyx(-1, -1)
 
         try:
             while self.running:
