@@ -58,6 +58,7 @@ func main() {
 	init_highlighting()
 	init_search()
 	init_visual()
+	init_term()
 
 	init_screen()
 	init_term_events()
@@ -248,17 +249,19 @@ func init_modes() {
 		run_command([]string{"edit", file_path})
 	})
 
-	// TODO Remove once I have user configurable bindings
+	// TODO Remove once we have user configurable bindings
 	bind("normal", k("SPC b"), func(vt *view_tree, b *buffer, kl *key_list) {
 		run_command([]string{"buffers"})
 	})
-	bind("normal", k("SPC f"), func(vt *view_tree, b *buffer, kl *key_list) {
+	edit_current_folder := func(vt *view_tree, b *buffer, kl *key_list) {
 		if b.path == "" {
 			run_command([]string{"edit", "."})
 		} else {
 			run_command([]string{"edit", filepath.Dir(b.path)})
 		}
-	})
+	}
+	bind("normal", k("SPC f"), edit_current_folder)
+	bind("normal", k("-"), edit_current_folder)
 	bind("normal", k("SPC n"), func(vt *view_tree, b *buffer, kl *key_list) {
 		run_command([]string{"clearsearch"})
 	})
@@ -1530,6 +1533,9 @@ func new_key(rep string) *key {
 	}
 
 	parts := strings.Split(rep, "-")
+	if rep == "-" {
+		parts = []string{"-"}
+	}
 
 	// Modifiers
 	mod_mask := tcell.ModNone

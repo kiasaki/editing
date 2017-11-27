@@ -18,7 +18,7 @@ func init_visual() {
 	hook_buffer("moved", visual_rehighlight)
 }
 
-// Run highlight when in visual mode and cursor mode as normall we
+// Run highlight when in visual mode and cursor mode as normal we
 // only recompute highlights when the buffer changes
 func visual_rehighlight(b *buffer) {
 	if b.is_in_mode("visual") || b.is_in_mode("visual-line") {
