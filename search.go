@@ -6,11 +6,11 @@ import (
 )
 
 var (
-	last_search_buffer    *buffer = nil
+	last_search_buffer    *Buffer = nil
 	last_search                   = ""
 	last_search_index             = 0
 	last_search_highlight         = false
-	last_search_results           = []*location{}
+	last_search_results           = []*Location{}
 )
 
 func init_search() {
@@ -18,16 +18,16 @@ func init_search() {
 	bind("normal", k("N"), handle_search_prev)
 	bind("normal", k("n"), handle_search_next)
 	bind("normal", k("*"), handle_search_search_work_under_cursor)
-	bind("normal", k("SPC n"), func(vt *view_tree, b *buffer, kl *key_list) {
+	bind("normal", k("SPC n"), func(vt *ViewTree, b *Buffer, kl *KeyList) {
 		search_clear()
 	})
 
-	add_command("clearsearch", func(args []string) {
+	addCommand("clearsearch", func(args []string) {
 		search_clear()
 	})
-	add_alias("cs", "clearsearch")
+	addAlias("cs", "clearsearch")
 
-	hook_buffer("modified", func(b *buffer) {
+	hook_buffer("modified", func(b *Buffer) {
 		// Update search result indexes on buffer changes
 		if last_search != "" && b == last_search_buffer {
 			search_find_matches(b, last_search)
@@ -38,24 +38,24 @@ func init_search() {
 
 func search_clear() {
 	last_search_highlight = false
-	highlight_buffer(current_view_tree.leaf.buf)
+	highlight_buffer(currentViewTree.Leaf.Buf)
 }
 
-func search_find_matches(b *buffer, search string) {
+func search_find_matches(b *Buffer, search string) {
 	last_search = search
 	re := regexp.MustCompile(regexp.QuoteMeta(search))
 
 	last_search_buffer = b
-	last_search_results = []*location{}
-	for i, line := range b.data {
+	last_search_results = []*Location{}
+	for i, line := range b.Data {
 		idxs := re.FindAllStringIndex(string(line), -1)
 		for _, idx := range idxs {
-			last_search_results = append(last_search_results, new_location(i, idx[0]))
+			last_search_results = append(last_search_results, NewLocation(i, idx[0]))
 		}
 	}
 }
 
-func search_start(b *buffer, search string) {
+func search_start(b *Buffer, search string) {
 	if len(search) > 0 {
 		search_find_matches(b, search)
 
@@ -65,13 +65,13 @@ func search_start(b *buffer, search string) {
 	}
 }
 
-func handle_search_start(vt *view_tree, b *buffer, kl *key_list) {
-	prompt("/", noop_complete, func(args []string) {
+func handle_search_start(vt *ViewTree, b *Buffer, kl *KeyList) {
+	prompt("/", noopComplete, func(args []string) {
 		search_start(b, strings.Join(args, " "))
 	})
 }
 
-func search_prev(b *buffer) {
+func search_prev(b *Buffer) {
 	if len(last_search_results) == 0 {
 		message("No search result.")
 		return
@@ -82,17 +82,17 @@ func search_prev(b *buffer) {
 		last_search_index--
 	}
 	last_search_highlight = true
-	highlight_buffer(current_view_tree.leaf.buf)
+	highlight_buffer(currentViewTree.Leaf.Buf)
 	loc := last_search_results[last_search_index]
-	b.move_to(loc.char, loc.line)
+	b.MoveTo(loc.Char, loc.Line)
 
 }
 
-func handle_search_prev(vt *view_tree, b *buffer, kl *key_list) {
+func handle_search_prev(vt *ViewTree, b *Buffer, kl *KeyList) {
 	search_prev(b)
 }
 
-func search_next(b *buffer) {
+func search_next(b *Buffer) {
 	if len(last_search_results) == 0 {
 		message("No search result.")
 		return
@@ -103,17 +103,17 @@ func search_next(b *buffer) {
 		last_search_index++
 	}
 	last_search_highlight = true
-	highlight_buffer(current_view_tree.leaf.buf)
+	highlight_buffer(currentViewTree.Leaf.Buf)
 	loc := last_search_results[last_search_index]
-	b.move_to(loc.char, loc.line)
+	b.MoveTo(loc.Char, loc.Line)
 
 }
 
-func handle_search_next(vt *view_tree, b *buffer, kl *key_list) {
+func handle_search_next(vt *ViewTree, b *Buffer, kl *KeyList) {
 	search_next(b)
 }
 
-func search_highlight(b *buffer, l, c int) int {
+func search_highlight(b *Buffer, l, c int) int {
 	if !last_search_highlight {
 		return 0
 	}
@@ -121,13 +121,13 @@ func search_highlight(b *buffer, l, c int) int {
 		return 0
 	}
 	for _, loc := range last_search_results {
-		if l == loc.line && c == loc.char {
+		if l == loc.Line && c == loc.Char {
 			return len(last_search)
 		}
 	}
 	return 0
 }
 
-func handle_search_search_work_under_cursor(vt *view_tree, b *buffer, kl *key_list) {
-	search_start(b, string(b.word_under_cursor()))
+func handle_search_search_work_under_cursor(vt *ViewTree, b *Buffer, kl *KeyList) {
+	search_start(b, string(b.WordUnderCursor()))
 }

@@ -8,6 +8,9 @@ deps:
 	go get github.com/tools/godep
 	godep restore
 
+install:
+	install ./ry /usr/local/bin/ry
+
 clean:
 	rm ry
 

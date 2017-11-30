@@ -11,7 +11,7 @@ func init_config() {
 	}
 }
 
-func config_get(key string, b *buffer) string {
+func config_get(key string, b *Buffer) string {
 	if v, ok := config[key]; ok {
 		if vv, ok := v.(string); ok {
 			return vv
@@ -20,7 +20,7 @@ func config_get(key string, b *buffer) string {
 	return ""
 }
 
-func config_get_bool(key string, b *buffer) bool {
+func config_get_bool(key string, b *Buffer) bool {
 	if v, ok := config[key]; ok {
 		if vv, ok := v.(bool); ok {
 			return vv
@@ -29,7 +29,7 @@ func config_get_bool(key string, b *buffer) bool {
 	return false
 }
 
-func config_get_number(key string, b *buffer) float64 {
+func config_get_number(key string, b *Buffer) float64 {
 	if v, ok := config[key]; ok {
 		if vv, ok := v.(float64); ok {
 			return vv
