@@ -73,7 +73,7 @@ func highlight_buffer(b *Buffer) {
 					}
 				}
 			}
-			if visual_highlight(b, l, c) {
+			if visualHighlight(b, l, c) {
 				style_map[l][c] = svi
 				continue
 			}
@@ -90,7 +90,7 @@ func highlight_buffer(b *Buffer) {
 				style_map[l][c] = stc
 				style_map[l][c-1] = stc
 			}
-			if char == '\'' || char == '"' {
+			if char == '\'' || char == '"' || char == '`' {
 				if in_string == char {
 					in_string = rune(0)
 				} else if in_string == rune(0) {

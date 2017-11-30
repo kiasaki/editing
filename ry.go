@@ -39,12 +39,12 @@ func main() {
 	initModes()
 	initCommands()
 
-	init_config()
+	initConfig()
 	init_hooks()
 	init_highlighting()
 	init_search()
-	init_visual()
-	init_term()
+	initVisual()
+	initTerm()
 
 	initScreen()
 	initTermEvents()

@@ -17,9 +17,7 @@ func initScreen() {
 	encoding.Register()
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
 
-	screen.SetStyle(tcell.StyleDefault.
-		Foreground(tcell.ColorWhite).
-		Background(tcell.ColorDefault))
+	screen.SetStyle(tcell.StyleDefault)
 	screen.Clear()
 
 	editorWidth, editorHeight = screen.Size()

@@ -4,14 +4,14 @@ var (
 	config map[string]interface{}
 )
 
-func init_config() {
+func initConfig() {
 	config = map[string]interface{}{
 		"tab_width":     float64(4),
 		"tab_to_spaces": true,
 	}
 }
 
-func config_get(key string, b *Buffer) string {
+func configGet(key string, b *Buffer) string {
 	if v, ok := config[key]; ok {
 		if vv, ok := v.(string); ok {
 			return vv
@@ -20,7 +20,7 @@ func config_get(key string, b *Buffer) string {
 	return ""
 }
 
-func config_get_bool(key string, b *Buffer) bool {
+func configGetBool(key string, b *Buffer) bool {
 	if v, ok := config[key]; ok {
 		if vv, ok := v.(bool); ok {
 			return vv
@@ -29,7 +29,7 @@ func config_get_bool(key string, b *Buffer) bool {
 	return false
 }
 
-func config_get_number(key string, b *Buffer) float64 {
+func configGetNumber(key string, b *Buffer) float64 {
 	if v, ok := config[key]; ok {
 		if vv, ok := v.(float64); ok {
 			return vv
@@ -38,6 +38,6 @@ func config_get_number(key string, b *Buffer) float64 {
 	return 0
 }
 
-func config_set(key string, value interface{}) {
+func configSet(key string, value interface{}) {
 	config[key] = value
 }

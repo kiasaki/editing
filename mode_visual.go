@@ -1,32 +1,32 @@
 package main
 
-func init_visual() {
+func initVisual() {
 	addMode("visual")
-	bind("visual", k("ESC"), exit_visual_mode)
-	bind("visual", k("y"), visual_mode_yank)
-	bind("visual", k("d"), visual_mode_delete)
-	bind("visual", k("p"), visual_mode_paste)
-	bind("visual", k("c"), visual_mode_change)
+	bind("visual", k("ESC"), exitVisualMode)
+	bind("visual", k("y"), visualModeYank)
+	bind("visual", k("d"), visualModeDelete)
+	bind("visual", k("p"), visualModePaste)
+	bind("visual", k("c"), visualModeChange)
 
 	addMode("visual-line")
-	bind("visual-line", k("ESC"), exit_visual_mode)
-	bind("visual-line", k("y"), visual_mode_yank)
-	bind("visual-line", k("d"), visual_mode_delete)
-	bind("visual-line", k("p"), visual_mode_paste)
-	bind("visual-line", k("c"), visual_mode_change)
+	bind("visual-line", k("ESC"), exitVisualMode)
+	bind("visual-line", k("y"), visualModeYank)
+	bind("visual-line", k("d"), visualModeDelete)
+	bind("visual-line", k("p"), visualModePaste)
+	bind("visual-line", k("c"), visualModeChange)
 
-	hook_buffer("moved", visual_rehighlight)
+	hook_buffer("moved", visualRehighlight)
 }
 
 // Run highlight when in visual mode and cursor mode as normal we
 // only recompute highlights when the buffer changes
-func visual_rehighlight(b *Buffer) {
+func visualRehighlight(b *Buffer) {
 	if b.IsInMode("visual") || b.IsInMode("visual-line") {
 		highlight_buffer(b)
 	}
 }
 
-func visual_highlight(b *Buffer, l, c int) bool {
+func visualHighlight(b *Buffer, l, c int) bool {
 	in_visual_line := b.IsInMode("visual-line")
 	if !b.IsInMode("visual") && !in_visual_line {
 		return false
@@ -44,24 +44,24 @@ func visual_highlight(b *Buffer, l, c int) bool {
 	}
 }
 
-func exit_visual_mode(vt *ViewTree, b *Buffer, kl *KeyList) {
+func exitVisualMode(vt *ViewTree, b *Buffer, kl *KeyList) {
 	b.RemoveMode("visual")
 	b.RemoveMode("visual-line")
 	highlight_buffer(b)
 }
 
-func enter_visual_mode(vt *ViewTree, b *Buffer, kl *KeyList) {
+func enterVisualMode(vt *ViewTree, b *Buffer, kl *KeyList) {
 	b.AddMode("visual")
 	markCreate('∫', b)
 }
 
-func enter_visual_block_mode(vt *ViewTree, b *Buffer, kl *KeyList) {
+func enterVisualBlockMode(vt *ViewTree, b *Buffer, kl *KeyList) {
 	b.AddMode("visual-line")
 	markCreate('∫', b)
 	highlight_buffer(b)
 }
 
-func visual_mode_selection(b *Buffer) ([]rune, *Location, *Location) {
+func visualModeSelection(b *Buffer) ([]rune, *Location, *Location) {
 	in_visual_line := b.IsInMode("visual-line")
 	l1, l2 := orderLocations(b.Cursor, getMark('∫').Loc)
 	data := []rune{}
@@ -87,22 +87,22 @@ func visual_mode_selection(b *Buffer) ([]rune, *Location, *Location) {
 	return data, l1, l2
 }
 
-func visual_mode_yank(vt *ViewTree, b *Buffer, kl *KeyList) {
-	text, l1, _ := visual_mode_selection(b)
+func visualModeYank(vt *ViewTree, b *Buffer, kl *KeyList) {
+	text, l1, _ := visualModeSelection(b)
 	clipboardSet(defaultClipboard, text)
 
 	b.MoveTo(l1.Char, l1.Line)
-	exit_visual_mode(vt, b, kl)
+	exitVisualMode(vt, b, kl)
 }
-func visual_mode_delete(vt *ViewTree, b *Buffer, kl *KeyList) {
-	text, l1, _ := visual_mode_selection(b)
+func visualModeDelete(vt *ViewTree, b *Buffer, kl *KeyList) {
+	text, l1, _ := visualModeSelection(b)
 	b.MoveTo(l1.Char, l1.Line)
 	b.Remove(len(text))
 
-	exit_visual_mode(vt, b, kl)
+	exitVisualMode(vt, b, kl)
 }
-func visual_mode_paste(vt *ViewTree, b *Buffer, kl *KeyList) {
-	text, l1, _ := visual_mode_selection(b)
+func visualModePaste(vt *ViewTree, b *Buffer, kl *KeyList) {
+	text, l1, _ := visualModeSelection(b)
 	clipboard_text := clipboardGet(defaultClipboard)
 	b.MoveTo(l1.Char, l1.Line)
 	b.Remove(len(text))
@@ -110,13 +110,13 @@ func visual_mode_paste(vt *ViewTree, b *Buffer, kl *KeyList) {
 	clipboardSet(defaultClipboard, text)
 
 	b.MoveTo(l1.Char, l1.Line)
-	exit_visual_mode(vt, b, kl)
+	exitVisualMode(vt, b, kl)
 }
-func visual_mode_change(vt *ViewTree, b *Buffer, kl *KeyList) {
-	text, l1, _ := visual_mode_selection(b)
+func visualModeChange(vt *ViewTree, b *Buffer, kl *KeyList) {
+	text, l1, _ := visualModeSelection(b)
 	b.MoveTo(l1.Char, l1.Line)
 	b.Remove(len(text))
 
-	exit_visual_mode(vt, b, kl)
+	exitVisualMode(vt, b, kl)
 	enterInsertMode(vt, b, kl)
 }

@@ -110,8 +110,8 @@ func initModes() {
 	bind("normal", k("p"), commandPaste)
 	bind("normal", k("u"), commandUndo)
 	bind("normal", k("C-r"), commandRedo)
-	bind("normal", k("v"), enter_visual_mode)
-	bind("normal", k("V"), enter_visual_block_mode)
+	bind("normal", k("v"), enterVisualMode)
+	bind("normal", k("V"), enterVisualBlockMode)
 
 	addMode("insert")
 	bind("insert", k("ESC"), enterNormalMode)
@@ -269,8 +269,8 @@ func insertBackspace(vt *ViewTree, b *Buffer, kl *KeyList) {
 		}
 		// handle spaces
 		delete_n := 1
-		if config_get_bool("tab_to_spaces", b) {
-			delete_n = int(config_get_number("tab_width", b))
+		if configGetBool("tab_to_spaces", b) {
+			delete_n = int(configGetNumber("tab_width", b))
 		}
 		for i := 0; i < delete_n && b.CharAtLeft() == ' '; i++ {
 			b.Move(-1, 0)
@@ -281,8 +281,8 @@ func insertBackspace(vt *ViewTree, b *Buffer, kl *KeyList) {
 func insert(vt *ViewTree, b *Buffer, kl *KeyList) {
 	k := kl.keys[len(kl.keys)-1]
 	if k.Key == tcell.KeyTab {
-		if config_get_bool("tab_to_spaces", b) {
-			tab_width := int(config_get_number("tab_width", b))
+		if configGetBool("tab_to_spaces", b) {
+			tab_width := int(configGetNumber("tab_width", b))
 			message(strconv.Itoa(tab_width))
 			b.Insert([]rune(strings.Repeat(" ", tab_width)))
 			b.Move(tab_width, 0)
