@@ -1,0 +1,19 @@
+[[constraint]]
+  branch = "master"
+  name = "github.com/gdamore/tcell"
+
+[[constraint]]
+  name = "github.com/go-errors/errors"
+  version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/kr/pty"
+  version = "1.1.1"
+
+[[constraint]]
+  name = "github.com/mattn/go-runewidth"
+  version = "0.0.2"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/zyedidia/clipboard"

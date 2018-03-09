@@ -3,7 +3,7 @@ package main
 func initTerm() {
 	addMode("term")
 	bind("term", k("ESC"), termExitMode)
-	bind("insert", k("$any"), termInput)
+	bind("term", k("$any"), termInput)
 }
 
 func termExitMode(vt *ViewTree, b *Buffer, kl *KeyList) {

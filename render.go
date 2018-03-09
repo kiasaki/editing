@@ -89,8 +89,8 @@ func renderView(v *View, x, y, w, h int) {
 
 	// Current mode
 	modeStatus := editorMode
-	for _, mode_name := range b.Modes {
-		modeStatus += "+" + mode_name
+	for _, modeName := range b.Modes {
+		modeStatus += "+" + modeName
 	}
 	modeStatus = " " + modeStatus + " "
 	write(ssbh, x, y+h-1, modeStatus)

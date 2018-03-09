@@ -101,6 +101,16 @@ func NewKey(rep string) *Key {
 }
 
 func (k *Key) String() string {
+	if k.Key == KeyTypeCatchall {
+		return "$any"
+	} else if k.Key == KeyTypeNum {
+		return "$num"
+	} else if k.Key == KeyTypeAlpha {
+		return "$alpha"
+	} else if k.Key == KeyTypeAlphaNum {
+		return "$alphanum"
+	}
+
 	mods := []string{}
 	if k.Mod&tcell.ModCtrl != 0 {
 		mods = append(mods, "C")

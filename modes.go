@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell"
@@ -282,10 +281,9 @@ func insert(vt *ViewTree, b *Buffer, kl *KeyList) {
 	k := kl.keys[len(kl.keys)-1]
 	if k.Key == tcell.KeyTab {
 		if configGetBool("tab_to_spaces", b) {
-			tab_width := int(configGetNumber("tab_width", b))
-			message(strconv.Itoa(tab_width))
-			b.Insert([]rune(strings.Repeat(" ", tab_width)))
-			b.Move(tab_width, 0)
+			tabWidth := int(configGetNumber("tab_width", b))
+			b.Insert([]rune(strings.Repeat(" ", tabWidth)))
+			b.Move(tabWidth, 0)
 		} else {
 			b.Insert([]rune{'\t'})
 			b.Move(1, 0)
