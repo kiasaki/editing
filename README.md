@@ -96,7 +96,7 @@ mold to their image.
   - <kbd>q</kbd> Close buffer
   - <kbd>RET</kbd> Open selected file in current window
 
-**Currently implemented command**
+**Currently implemented commands:**
 
 - `edit <filename>` (aliased as `e`) Edit a file in a new buffer (shows file selector on directories)
 - `write <filename?>` (aliased as `w`) Write buffer to disk, optionally setting it's path

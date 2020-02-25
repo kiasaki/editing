@@ -1,13 +1,13 @@
 # Todo
 
-- Autocomplete
+- Autocomplete (based on open buffers tokens)
+- Buffer related commands/keybindings (language modes?)
+- ~Command mode (q,w,o,e,wq,!,wqall)~
 - ~Marks~
 - ~Visual mode (+ visual line)~
 - ~Incremental Search~
-- Command mode (q,w,o,e,wq,!,wqall)
 - ~Buffer list/switch mode~
 - ~File tree mode~
-- Buffer related commands/keybindings
 
 **Post 1.0**
 

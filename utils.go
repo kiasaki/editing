@@ -42,14 +42,14 @@ func write(style tcell.Style, x, y int, str string) int {
 		// Handle tabs
 		if r == '\t' {
 			// TODO setting
-			tab_width := int(configGetNumber("tab_width", nil))
+			tabWidth := int(configGetNumber("tab_width", nil))
 
 			// Print first tab char
 			s.SetContent(x+i, y, '>', nil, style.Foreground(tcell.ColorAqua))
 			i++
 
-			// Add space till we reach tab column or tab_width
-			for j := 0; j < tab_width-1 || i%tab_width == tab_width-1; j++ {
+			// Add space till we reach tab column or tabWidth
+			for j := 0; j < tabWidth-1 || i%tabWidth == tabWidth-1; j++ {
 				s.SetContent(x+i, y, ' ', nil, style)
 				i++
 			}

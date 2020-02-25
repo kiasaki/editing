@@ -58,7 +58,7 @@ func renderView(v *View, x, y, w, h int) {
 	b.LastRenderWidth = w
 	b.LastRenderHeight = h
 
-	style_map := highlighting_styles(b)
+	styleMap := highlighting_styles(b)
 
 	gutterw := len(strconv.Itoa(len(b.Data))) + 1
 	sy := y
@@ -71,7 +71,7 @@ func renderView(v *View, x, y, w, h int) {
 			if v == currentViewTree.Leaf && line == b.Cursor.Line && c == b.Cursor.Char {
 				sx += write(sc, sx, sy, string(char))
 			} else {
-				sx += write(style_map[line][c], sx, sy, string(char))
+				sx += write(styleMap[line][c], sx, sy, string(char))
 			}
 			if sx >= x+w {
 				break

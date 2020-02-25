@@ -61,6 +61,7 @@ top:
 			case *tcell.EventKey:
 				if ev.Key() == tcell.KeyCtrlQ {
 					screen.Fini()
+					screen = nil
 					break top
 					/*
 						} else if ev.Key() == tcell.KeyEscape {

@@ -17,6 +17,7 @@ var (
 		"import", "export", "package", "from",
 		"go", "async", "await",
 		"raise", "throw", "try", "catch", "except", "finally",
+		"string", "rune", "byte", "int", "float",
 	}
 	highlighting_special_words = []string{
 		"self", "this", "true", "false", "True", "False", "nil", "null", "None",

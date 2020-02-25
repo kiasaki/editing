@@ -114,6 +114,7 @@ func initModes() {
 
 	addMode("insert")
 	bind("insert", k("ESC"), enterNormalMode)
+	bind("insert", k("C-c"), enterNormalMode)
 	bind("insert", k("RET"), insertEnter)
 	bind("insert", k("BAK"), insertBackspace)
 	bind("insert", k("$any"), insert)
